@@ -95,7 +95,7 @@ class RealtimeAPI:
 
                 async with websockets.connect(
                     url,
-                    extra_headers=headers,
+                    additional_headers=headers,
                     close_timeout=120,
                     ping_interval=30,
                     ping_timeout=10,
