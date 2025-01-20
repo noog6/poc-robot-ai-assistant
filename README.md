@@ -1,3 +1,13 @@
+# Remember the time...
+> ... when you wanted to make a realtime AI assistant run on common consumer embedded hardware? Then maybe attach a servo or some sensors to see howAI can handle this functionality? This project contains the changes needed to convert the below Realtime Assistant PoC so that itis able to run on the Raspaberry Pi Zero W (both hardware versions 1.1 or 2). After that, then we extend it with some new robotic specific capabilities.
+>
+> ## Converting for the Raspberry Pi
+> When starting with Raspbian (or some other Ubuntu-ish) OS, version 3.12 of Python is not available in pre-built format, so you must get the source and build it yourself from source.
+>
+> Installing uv is ok, but getting uv to build multiple libraries at the same time can bring a small embedded device to a grinding halt. Modifying the pyproject.toml to only sync one library at a time worked for me to install most external dependancies one at a time. Save the largest libraries for last (I'm lookin at you numpy, pydantic and pandas...). Once these libraries are available in a prebuilt format for this platform, this step will be much easier. 
+>
+> DuckDB does not build in a reasonable timeframe on the Raspberry Pi Zero, so it was removed from the project and SQLite was used instead. (Thanks Dan for having multiple options already available!)
+> 
 # POC Python Realtime API o1 assistant
 > This is a proof of concept for using the OpenAI's [Realtime API](https://openai.com/index/introducing-the-realtime-api/) to chain tools, call o1-preview & o1-mini, [structure output](https://openai.com/index/introducing-structured-outputs-in-the-api/) responses, and glimpse into the future of **AI assistant powered engineering**.
 >
