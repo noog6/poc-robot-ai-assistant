@@ -7,7 +7,7 @@ import asyncio
 from datetime import datetime
 from enum import Enum
 import pyaudio
-from firecrawl import FirecrawlApp
+#from firecrawl import FirecrawlApp
 import tempfile
 import subprocess
 
@@ -134,10 +134,10 @@ def scrap_url(url: str, formats: list = ["markdown", "html"]) -> dict:
     api_key = os.getenv("FIRECRAWL_API_KEY")
     if not api_key:
         raise ValueError("FIRECRAWL_API_KEY environment variable not set")
-    app = FirecrawlApp(api_key=api_key)
-    scrape_status = app.scrape_url(url, params={"formats": formats})
-    return scrape_status
-
+    #app = FirecrawlApp(api_key=api_key)
+    #scrape_status = app.scrape_url(url, params={"formats": formats})
+    #return scrape_status
+    return []
 
 def scrap_url_clean(url: str) -> str:
     """
