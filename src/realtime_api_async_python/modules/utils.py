@@ -102,9 +102,9 @@ SESSION_INSTRUCTIONS = (
     f"You are {ai_assistant_name}, a helpful assistant. Respond to {human_name}. "
     f"{personalization.get('system_message_suffix', '')}"
 )
-PREFIX_PADDING_MS = 300
-SILENCE_THRESHOLD = 0.5
-SILENCE_DURATION_MS = 700
+PREFIX_PADDING_MS = 400
+SILENCE_THRESHOLD = 0.3
+SILENCE_DURATION_MS = 900
 
 
 def match_pattern(pattern: str, key: str) -> bool:
