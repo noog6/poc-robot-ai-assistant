@@ -16,6 +16,7 @@ from .ADS1015Sensor import ADS1015Sensor
 from .llm import parse_markdown_backticks, structured_output_prompt, chat_prompt
 from .memory_management import memory_manager
 from .logging import log_info
+from .ServoRegistry import ServoRegistry
 from .utils import (
     timeit_decorator,
     ModelName,
@@ -214,6 +215,26 @@ async def get_current_time():
 @timeit_decorator
 async def get_random_number():
     return {"random_number": random.randint(1, 100)}
+
+
+@timeit_decorator
+async def set_pan(degrees: int):
+    servo_reg = ServoRegistry.get_instance()
+    servo_reg.servos['pan'].write_value(degrees)
+
+
+@timeit_decorator
+async def pan_left(amount: int):
+    servo_reg = ServoRegistry.get_instance()
+    current_position = servo_reg.servos['pan'].read_value()
+    servo_reg.servos['pan'].write_value(current_position - amount)
+
+
+@timeit_decorator
+async def pan_right(amount: int):
+    servo_reg = ServoRegistry.get_instance()
+    current_position = servo_reg.servos['pan'].read_value()
+    servo_reg.servos['pan'].write_value(current_position + amount)
 
 
 @timeit_decorator
@@ -1622,6 +1643,9 @@ function_map = {
     "run_sql_file": run_sql_file,
     "create_python_chart": create_python_chart,
     "read_battery_voltage": read_battery_voltage,
+    "set_pan": set_pan,
+    "pan_left": pan_left,
+    "pan_right": pan_right,
 }
 
 # Tools array for session initialization
@@ -1996,6 +2020,57 @@ tools = [
             "type": "object",
             "properties": {},
             "required": [],
+        },
+    },
+    {
+        "type": "function",
+        "name": "set_pan",
+        "description": "Sets the left and right pan servo to an absolute position between -90 and +90 degrees.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "degrees": {
+                    "type": "integer",
+                    "description": "The target pan position in degrees, where 0 is the neutral/middle position, -90 is full left, and +90 is full right.",
+                    "minimum": -90,
+                    "maximum": 90,
+                },
+            },
+            "required": ["degrees"],
+        },
+    },
+    {
+        "type": "function",
+        "name": "pan_left",
+        "description": "Moves the servo to the left by a specified number of degrees from the current position.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer",
+                    "description": "The number of degrees to move left, relative to the current position. Positive values decrease the pan angle.",
+                    "minimum": 1,
+                    "maximum": 90,
+                },
+            },
+            "required": ["amount"],
+        },
+    },
+    {
+        "type": "function",
+        "name": "pan_right",
+        "description": "Moves the servo to the right by a specified number of degrees from the current position.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer",
+                    "description": "The number of degrees to move right, relative to the current position. Positive values increase the pan angle.",
+                    "minimum": 1,
+                    "maximum": 90,
+                },
+            },
+            "required": ["amount"],
         },
     },
 ]

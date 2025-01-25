@@ -10,6 +10,7 @@ import pyaudio
 #from firecrawl import FirecrawlApp
 import tempfile
 import subprocess
+from .ServoRegistry import ServoRegistry
 
 RUN_TIME_TABLE_LOG_JSON = "runtime_time_table.jsonl"
 
@@ -105,6 +106,11 @@ SESSION_INSTRUCTIONS = (
 PREFIX_PADDING_MS = 400
 SILENCE_THRESHOLD = 0.3
 SILENCE_DURATION_MS = 900
+
+# Start up servo controller sub-system
+servo_reg = ServoRegistry.get_instance()
+servo_reg.servos['pan'].neutral_position()
+servo_reg.servos['tilt'].neutral_position()
 
 
 def match_pattern(pattern: str, key: str) -> bool:
