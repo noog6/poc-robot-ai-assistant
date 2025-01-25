@@ -14,7 +14,7 @@ import subprocess
 RUN_TIME_TABLE_LOG_JSON = "runtime_time_table.jsonl"
 
 # Audio recording parameters
-CHUNK = 1024
+CHUNK = 2048
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 24000
