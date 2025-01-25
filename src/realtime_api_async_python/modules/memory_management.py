@@ -77,7 +77,7 @@ class MemoryManager:
         self.save_memory()
 
 
-# create yaml, sqlite/duckdb memory managers
+# create yaml, sqlite memory managers
 
 # Initialize the MemoryManager
 memory_file = os.getenv("ACTIVE_MEMORY_FILE", "./active_memory.json")

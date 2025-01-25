@@ -1,7 +1,6 @@
 import psycopg2
 import pandas as pd
 import sqlite3
-import duckdb
 
 class Database:
     def connect(self, url: str):
@@ -111,44 +110,10 @@ class SQLiteDatabase(Database):
         df = pd.read_sql_query(sql, self.connection)
         return df
 
-class DuckDBDatabase(Database):
-    def __init__(self):
-        self.connection = None
-
-    def connect(self, url: str):
-        self.connection = duckdb.connect(database=url)
-
-    def read_tables(self, schema: str = None) -> str:
-        cursor = self.connection.cursor()
-        cursor.execute("SHOW TABLES;")
-        tables = cursor.fetchall()
-
-        table_defs = ""
-        for (table_name,) in tables:
-            cursor.execute(f"DESCRIBE {table_name};")
-            columns = cursor.fetchall()
-            table_defs += f"CREATE TABLE {table_name} (\n"
-            col_defs = []
-            for col in columns:
-                col_def = f"    {col[0]} {col[1]}"
-                if col[3] == 'NO':
-                    col_def += " NOT NULL"
-                col_defs.append(col_def)
-            table_defs += ",\n".join(col_defs)
-            table_defs += "\n);\n\n"
-        cursor.close()
-        return table_defs
-
-    def execute_sql(self, sql: str) -> pd.DataFrame:
-        df = self.connection.execute(sql).fetchdf()
-        return df
-
 def get_database_instance(sql_dialect: str) -> Database:
     if sql_dialect == 'postgres':
         return PostgresDatabase()
     elif sql_dialect == 'sqlite':
         return SQLiteDatabase()
-    elif sql_dialect == 'duckdb':
-        return DuckDBDatabase()
     else:
         raise ValueError(f"Unsupported SQL dialect: {sql_dialect}")
