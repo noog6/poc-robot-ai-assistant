@@ -121,7 +121,6 @@ The codebase is organized within the `src/realtime_api_async_python` directory. 
   - `llm.py`: Interfaces with language models, including functions for structured output parsing and chat prompts.
   - `logging.py`: Configures logging for the application using Rich for formatted and colorful logs.
   - `memory_management.py`: Manages the assistant's memory with operations to create, read, update, and delete memory entries.
-  - `mermaid.py`: Generates Mermaid diagrams based on prompts and renders them as images.
   - `tools.py`: Contains definitions of tools and functions that the assistant can use to perform various actions.
   - `utils.py`: Provides utility functions used across the application, such as timing decorators, model enumerations, audio configurations, and helper methods.
 - **`tests/` Directory**: Contains tests for the application's modules, providing a starting point for testing the application's components.

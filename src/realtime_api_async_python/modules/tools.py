@@ -24,7 +24,6 @@ from .utils import (
     scrap_url_clean,
     run_uv_script,
 )
-from .mermaid import generate_diagram
 from .database import get_database_instance
 import re
 
@@ -1598,7 +1597,6 @@ function_map = {
     "reset_active_memory": reset_active_memory,
     "add_to_memory": add_to_memory,
     "scrap_to_file_from_clipboard": scrap_to_file_from_clipboard,
-    "generate_diagram": generate_diagram,
     "runnable_code_check": runnable_code_check,
     "run_python": run_python,
     "ingest_file": ingest_file,
@@ -1878,25 +1876,6 @@ tools = [
             "type": "object",
             "properties": {},
             "required": [],
-        },
-    },
-    {
-        "type": "function",
-        "name": "generate_diagram",
-        "description": "Generates mermaid diagrams based on the user's prompt.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "prompt": {
-                    "type": "string",
-                    "description": "The user's prompt describing the diagram to generate.",
-                },
-                "version_count": {
-                    "type": "integer",
-                    "description": "The total number of diagram versions to generate. Defaults to 1 if not specified.",
-                },
-            },
-            "required": ["prompt"],  # 'version_count' is optional
         },
     },
     {
