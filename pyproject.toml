@@ -19,6 +19,7 @@ dependencies = [
     "pandas>=2.2.3",
     "psycopg2-binary>=2.9.9",
     "matplotlib>=3.9.2",
+    "smbus",
 ]
 
 [build-system]

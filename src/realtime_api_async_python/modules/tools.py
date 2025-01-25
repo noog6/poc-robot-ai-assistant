@@ -12,6 +12,7 @@ from typing import Any, Dict, Tuple, List, Optional
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from enum import Enum
+from .ADS1015Sensor import ADS1015Sensor
 from .llm import parse_markdown_backticks, structured_output_prompt, chat_prompt
 from .memory_management import memory_manager
 from .logging import log_info
@@ -213,6 +214,19 @@ async def get_current_time():
 @timeit_decorator
 async def get_random_number():
     return {"random_number": random.randint(1, 100)}
+
+
+@timeit_decorator
+async def read_battery_voltage():
+    resistor_r1 = 10000
+    resistor_r2 =  6800
+
+    analog_sensor   = ADS1015Sensor.get_instance()
+    data            = analog_sensor.single_read(3)
+    analog_reading  = (data * 2) / 1000
+    battery_voltage = round(analog_reading * ( (resistor_r1 + resistor_r2) / resistor_r2 ), 2)
+
+    return {"current_battery_voltage": battery_voltage }
 
 
 @timeit_decorator
@@ -1607,6 +1621,7 @@ function_map = {
     "generate_sql_and_execute": generate_sql_and_execute,
     "run_sql_file": run_sql_file,
     "create_python_chart": create_python_chart,
+    "read_battery_voltage": read_battery_voltage,
 }
 
 # Tools array for session initialization
@@ -1971,6 +1986,16 @@ tools = [
                 },
             },
             "required": ["prompt"],
+        },
+    },
+    {
+        "type": "function",
+        "name": "read_battery_voltage",
+        "description": "Returns the current voltage of the onboard battery.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
         },
     },
 ]
