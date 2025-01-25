@@ -14,8 +14,8 @@
     "https://openai.com/index/introducing-the-realtime-api/"
   ],
   "browser_command": "open -a 'Google Chrome'",
-  "ai_assistant_name": "Ada",
-  "human_name": "Dan",
+  "ai_assistant_name": "Theo",
+  "human_name": "Sparky",
   "sql_dialect": "sqlite",
   "system_message_suffix": "Keep all of your responses ultra short. Say things like: 'Task complete', 'There was an error', 'I need more information'."
 }

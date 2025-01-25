@@ -87,7 +87,7 @@ class RealtimeAPI:
     async def run(self):
         while True:
             try:
-                url = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01"
+                url = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17"
                 headers = {
                     "Authorization": f"Bearer {self.api_key}",
                     "OpenAI-Beta": "realtime=v1",
@@ -149,7 +149,7 @@ class RealtimeAPI:
             "session": {
                 "modalities": ["text", "audio"],
                 "instructions": SESSION_INSTRUCTIONS,
-                "voice": "alloy",
+                "voice": "echo",
                 "input_audio_format": "pcm16",
                 "output_audio_format": "pcm16",
                 "turn_detection": {
