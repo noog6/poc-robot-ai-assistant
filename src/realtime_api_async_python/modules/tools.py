@@ -238,6 +238,26 @@ async def pan_right(amount: int):
 
 
 @timeit_decorator
+async def set_tilt(degrees: int):
+    servo_reg = ServoRegistry.get_instance()
+    servo_reg.servos['tilt'].write_value(degrees)
+
+
+@timeit_decorator
+async def tilt_down(amount: int):
+    servo_reg = ServoRegistry.get_instance()
+    current_position = servo_reg.servos['tilt'].read_value()
+    servo_reg.servos['tilt'].write_value(current_position - amount)
+
+
+@timeit_decorator
+async def tilt_up(amount: int):
+    servo_reg = ServoRegistry.get_instance()
+    current_position = servo_reg.servos['tilt'].read_value()
+    servo_reg.servos['tilt'].write_value(current_position + amount)
+
+
+@timeit_decorator
 async def read_battery_voltage():
     resistor_r1 = 10000
     resistor_r2 =  6800
@@ -1646,6 +1666,10 @@ function_map = {
     "set_pan": set_pan,
     "pan_left": pan_left,
     "pan_right": pan_right,
+    "set_tilt": set_tilt,
+    "tilt_up": tilt_up,
+    "tilt_down": tilt_down,
+
 }
 
 # Tools array for session initialization
@@ -2068,6 +2092,57 @@ tools = [
                     "description": "The number of degrees to move right, relative to the current position. Positive values increase the pan angle.",
                     "minimum": 1,
                     "maximum": 90,
+                },
+            },
+            "required": ["amount"],
+        },
+    },
+    {
+        "type": "function",
+        "name": "set_tilt",
+        "description": "Sets the up and down tilt servo to an absolute position between -45 and +45 degrees.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "degrees": {
+                    "type": "integer",
+                    "description": "The target tilt position in degrees, where 0 is the neutral/middle position, -45 is full down, and +45 is full up.",
+                    "minimum": -45,
+                    "maximum": 45,
+                },
+            },
+            "required": ["degrees"],
+        },
+    },
+    {
+        "type": "function",
+        "name": "tilt_up",
+        "description": "Tilts the servo up by a specified number of degrees from the current position.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer",
+                    "description": "The number of degrees to tilt up, relative to the current position. Positive values increase the tilt angle.",
+                    "minimum": 1,
+                    "maximum": 45,
+                },
+            },
+            "required": ["amount"],
+        },
+    },
+    {
+        "type": "function",
+        "name": "tilt_down",
+        "description": "Tilt the servo down by a specified number of degrees from the current position.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer",
+                    "description": "The number of degrees to tilt down, relative to the current position. Positive values decrease the tilt angle.",
+                    "minimum": 1,
+                    "maximum": 45,
                 },
             },
             "required": ["amount"],
