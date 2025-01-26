@@ -259,8 +259,8 @@ async def tilt_up(amount: int):
 
 @timeit_decorator
 async def read_battery_voltage():
-    resistor_r1 = 10000
-    resistor_r2 =  6800
+    resistor_r1 = 9750
+    resistor_r2 = 6770
 
     analog_sensor   = ADS1015Sensor.get_instance()
     data            = analog_sensor.single_read(3)
