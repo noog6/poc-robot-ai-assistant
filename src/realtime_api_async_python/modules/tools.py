@@ -2039,7 +2039,7 @@ tools = [
     {
         "type": "function",
         "name": "read_battery_voltage",
-        "description": "Returns the current voltage of the onboard battery.",
+        "description": "Fetches the current voltage of the onboard 2S LiPo battery. Safe operating range is 7.0V to 8.4V.",
         "parameters": {
             "type": "object",
             "properties": {},
