@@ -224,37 +224,9 @@ async def set_pan(degrees: int):
 
 
 @timeit_decorator
-async def pan_left(amount: int):
-    servo_reg = ServoRegistry.get_instance()
-    current_position = servo_reg.servos['pan'].read_value()
-    servo_reg.servos['pan'].write_value(current_position - amount)
-
-
-@timeit_decorator
-async def pan_right(amount: int):
-    servo_reg = ServoRegistry.get_instance()
-    current_position = servo_reg.servos['pan'].read_value()
-    servo_reg.servos['pan'].write_value(current_position + amount)
-
-
-@timeit_decorator
 async def set_tilt(degrees: int):
     servo_reg = ServoRegistry.get_instance()
     servo_reg.servos['tilt'].write_value(degrees)
-
-
-@timeit_decorator
-async def tilt_down(amount: int):
-    servo_reg = ServoRegistry.get_instance()
-    current_position = servo_reg.servos['tilt'].read_value()
-    servo_reg.servos['tilt'].write_value(current_position - amount)
-
-
-@timeit_decorator
-async def tilt_up(amount: int):
-    servo_reg = ServoRegistry.get_instance()
-    current_position = servo_reg.servos['tilt'].read_value()
-    servo_reg.servos['tilt'].write_value(current_position + amount)
 
 
 @timeit_decorator
@@ -1664,11 +1636,7 @@ function_map = {
     "create_python_chart": create_python_chart,
     "read_battery_voltage": read_battery_voltage,
     "set_pan": set_pan,
-    "pan_left": pan_left,
-    "pan_right": pan_right,
     "set_tilt": set_tilt,
-    "tilt_up": tilt_up,
-    "tilt_down": tilt_down,
 
 }
 
@@ -2039,7 +2007,7 @@ tools = [
     {
         "type": "function",
         "name": "read_battery_voltage",
-        "description": "Fetches the current voltage of the onboard 2S LiPo battery. Safe operating range is 7.0V to 8.4V.",
+        "description": "Fetches the current voltage of the onboard 2S LiPo battery. Safe operating range is 7.0V to 8.4V. If we are near the max voltage that is ok, but if we are within 0.5 volts of the minimum voltage start to get sassy and complain about it.",
         "parameters": {
             "type": "object",
             "properties": {},
@@ -2049,7 +2017,7 @@ tools = [
     {
         "type": "function",
         "name": "set_pan",
-        "description": "Sets the left and right pan servo to an absolute position between -90 and +90 degrees.",
+        "description": "Sets the left and right pan servo to an absolute position between -90 and +90 degrees. If someone asks you to look left - you pan left! If someone asks you to look right - you pan right!",
         "parameters": {
             "type": "object",
             "properties": {
@@ -2065,42 +2033,8 @@ tools = [
     },
     {
         "type": "function",
-        "name": "pan_left",
-        "description": "Moves the servo to the left by a specified number of degrees from the current position.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "amount": {
-                    "type": "integer",
-                    "description": "The number of degrees to move left, relative to the current position. Positive values decrease the pan angle.",
-                    "minimum": 1,
-                    "maximum": 90,
-                },
-            },
-            "required": ["amount"],
-        },
-    },
-    {
-        "type": "function",
-        "name": "pan_right",
-        "description": "Moves the servo to the right by a specified number of degrees from the current position.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "amount": {
-                    "type": "integer",
-                    "description": "The number of degrees to move right, relative to the current position. Positive values increase the pan angle.",
-                    "minimum": 1,
-                    "maximum": 90,
-                },
-            },
-            "required": ["amount"],
-        },
-    },
-    {
-        "type": "function",
         "name": "set_tilt",
-        "description": "Sets the up and down tilt servo to an absolute position between -45 and +45 degrees.",
+        "description": "Sets the up and down tilt servo to an absolute position between -45 and +45 degrees. If someone asks you to look up - you tilt up! If they ask you to look down - you tilt down!",
         "parameters": {
             "type": "object",
             "properties": {
@@ -2112,40 +2046,6 @@ tools = [
                 },
             },
             "required": ["degrees"],
-        },
-    },
-    {
-        "type": "function",
-        "name": "tilt_up",
-        "description": "Tilts the servo up by a specified number of degrees from the current position.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "amount": {
-                    "type": "integer",
-                    "description": "The number of degrees to tilt up, relative to the current position. Positive values increase the tilt angle.",
-                    "minimum": 1,
-                    "maximum": 45,
-                },
-            },
-            "required": ["amount"],
-        },
-    },
-    {
-        "type": "function",
-        "name": "tilt_down",
-        "description": "Tilt the servo down by a specified number of degrees from the current position.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "amount": {
-                    "type": "integer",
-                    "description": "The number of degrees to tilt down, relative to the current position. Positive values decrease the tilt angle.",
-                    "minimum": 1,
-                    "maximum": 45,
-                },
-            },
-            "required": ["amount"],
         },
     },
 ]
