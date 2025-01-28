@@ -230,6 +230,13 @@ async def set_tilt(degrees: int):
 
 
 @timeit_decorator
+async def get_servo_position(servo_name: str):
+    servo_reg = ServoRegistry.get_instance()
+    current_position = servo_reg.servos[servo_name].read_value()
+    return current_position
+
+
+@timeit_decorator
 async def read_battery_voltage():
     resistor_r1 = 9750
     resistor_r2 = 6770
@@ -1637,7 +1644,7 @@ function_map = {
     "read_battery_voltage": read_battery_voltage,
     "set_pan": set_pan,
     "set_tilt": set_tilt,
-
+    "get_servo_position": get_servo_position,
 }
 
 # Tools array for session initialization
@@ -2046,6 +2053,25 @@ tools = [
                 },
             },
             "required": ["degrees"],
+        },
+    },
+    {
+        "type": "function",
+        "name": "get_servo_position",
+        "description": "Reads the current position from the servo requested and return that servo position back.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                 "servo_name": {
+                    "type": "string",
+                    "enum": [
+                        "pan",
+                        "tilt",
+                    ],
+                    "description": "The name of the servo to lookup the position from.",
+                },
+            },
+            "required": ["servo_name"],
         },
     },
 ]
