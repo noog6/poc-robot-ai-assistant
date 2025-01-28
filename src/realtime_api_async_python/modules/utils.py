@@ -104,7 +104,7 @@ SESSION_INSTRUCTIONS = (
     f"{personalization.get('system_message_suffix', '')}"
 )
 PREFIX_PADDING_MS = 400
-SILENCE_THRESHOLD = 0.3
+SILENCE_THRESHOLD = 0.2
 SILENCE_DURATION_MS = 900
 
 # Start up servo controller sub-system
