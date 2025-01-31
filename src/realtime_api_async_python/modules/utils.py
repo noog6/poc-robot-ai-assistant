@@ -11,6 +11,7 @@ import pyaudio
 import tempfile
 import subprocess
 from .ServoRegistry import ServoRegistry
+from .motion_controller import MotionController
 
 RUN_TIME_TABLE_LOG_JSON = "runtime_time_table.jsonl"
 
@@ -108,10 +109,11 @@ SILENCE_THRESHOLD = 0.2
 SILENCE_DURATION_MS = 900
 
 # Start up servo controller sub-system
-servo_reg = ServoRegistry.get_instance()
-servo_reg.servos['pan'].neutral_position()
-servo_reg.servos['tilt'].neutral_position()
-
+#servo_reg = ServoRegistry.get_instance()
+#servo_reg.servos['pan'].neutral_position()
+#servo_reg.servos['tilt'].neutral_position()
+motion_controller = MotionController.get_instance()
+motion_controller.start_control_loop()
 
 def match_pattern(pattern: str, key: str) -> bool:
     if pattern == "*":
