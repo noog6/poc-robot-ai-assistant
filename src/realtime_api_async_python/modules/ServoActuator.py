@@ -73,6 +73,5 @@ class ServoActuator():
         self.write_value( self.neutral_angle + neutral_offset)
     
     def read_value(self):
-        values = []
-        values.append(self.current_angle)
-        return values
+        return self.current_angle
+
