@@ -1,9 +1,11 @@
 import threading
 import time
+import traceback
 import heapq
 from .action        import Action
 from .keyframe      import Keyframe
 from .ServoRegistry import ServoRegistry
+
 
 def millis():
     return int(time.time() * 1000)
@@ -18,9 +20,10 @@ class MotionController():
             self._stop_event             = threading.Event()
             self.control_loop_index      = 0
             self.control_loop_function   = None
-            self.control_loop_frequency  = 20
+            self.control_loop_frequency  = 100
             self.control_loop_start_time = [0]*100
-            self.transition_time         = 150
+            self.transition_time         = 1500
+            self.servo_registry          = ServoRegistry.get_instance()
             self.current_servo_position  = {"pan" : 0,
                                             "tilt": 0}
             self.action_queue            = []
@@ -57,7 +60,7 @@ class MotionController():
                 time.sleep(0.002)
             self._stop_event.clear()
             self.control_loop_frequency = control_loop_frequency
-            self._control_loop_thread = threading.Thread(target=self._control_loop)
+            self._control_loop_thread = threading.Thread(target=self._control_loop, daemon=True)
             self._control_loop_thread.start()
 
 
@@ -83,7 +86,11 @@ class MotionController():
             if current_time >= next_control_loop_time:
                 self.control_loop_index += 1
 
-                self.update_pose()
+                try:
+                    self.update_pose()
+                except Exception as e:
+                    print(f"[WARNING] Error in control loop (retrying): {e}", flush=True)
+                    traceback.print_exc()
 
                 self.control_loop_start_time.append(current_time - next_control_loop_time)
                 if len(self.control_loop_start_time) > 100:
@@ -116,8 +123,30 @@ class MotionController():
             if new_frame.servo_steps_left < 1:
                 new_frame.servo_steps_left = 1
 
+            print( "=============================")
+            print(f"New frame setup: {new_frame.name}")
+            print(f"new_frame.final_taraget_time: {new_frame.final_target_time}")
+            print(f"current_time                : {current_time}")
+            print(f"self.control_loop_frequency : {self.control_loop_frequency}")
+            print(f"new_frame.servo_steps_left: {new_frame.servo_steps_left}")
+            print( "=============================")
+            print(f"new_frame.servo_destination['pan']: {new_frame.servo_destination['pan']}")
+            print(f"Type of new_frame.servo_destination['pan']: {type(new_frame.servo_destination['pan'])}")
+            print(f"new_frame.servo_destination['tilt']: {new_frame.servo_destination['tilt']}")
+            print(f"Type of new_frame.servo_destination['tilt']: {type(new_frame.servo_destination['tilt'])}")
+            print("")
+            print(f"[DEBUG] new_frame.servo_destination['pan']: {new_frame.servo_destination['pan']} (Type: {type(new_frame.servo_destination['pan'])})")
+            print(f"[DEBUG] new_frame.servo_destination['tilt']: {new_frame.servo_destination['tilt']} (Type: {type(new_frame.servo_destination['tilt'])})")
+
             new_frame.servo_step_size["pan"]  = (new_frame.servo_destination["pan"]  - self.current_servo_position["pan"])  / new_frame.servo_steps_left
             new_frame.servo_step_size["tilt"] = (new_frame.servo_destination["tilt"] - self.current_servo_position["tilt"]) / new_frame.servo_steps_left
+
+            print(f"[SETUP] new_frame.servo_destination['pan']: {new_frame.servo_destination['pan']} (Type: {type(new_frame.servo_destination['pan'])})")
+            print(f"[SETUP] new_frame.servo_step_size['pan']:   {new_frame.servo_step_size['pan']}")
+            print(f"[SETUP] self.current_servo_position['pan']: {self.current_servo_position['pan']} ")
+            print(f"[SETUP] new_frame.servo_destination['tilt']: {new_frame.servo_destination['tilt']} (Type: {type(new_frame.servo_destination['tilt'])})")
+            print(f"[SETUP] new_frame.servo_step_size['tilt']:   {new_frame.servo_step_size['tilt']}")
+            print(f"[SETUP] self.current_servo_position['tilt']: {self.current_servo_position['tilt']} ")
 
             new_frame.is_initialized = True
 
@@ -125,35 +154,48 @@ class MotionController():
             self.current_servo_position["pan"]  = new_frame.servo_destination["pan"]
             self.current_servo_position["tilt"] = new_frame.servo_destination["tilt"]
            
-            servo_reg = ServoRegistry.get_instance()
-            servo_reg.servos["pan"].write_value(self.current_servo_position["pan"])
-            servo_reg.servos["tilt"].write_value(self.current_servo_position["tilt"])
+            self.servo_registry.servos["pan"].write_value(self.current_servo_position["pan"])
+            self.servo_registry.servos["tilt"].write_value(self.current_servo_position["tilt"])
+
+            print(f"[DONE] new_frame.servo_destination['pan']: {new_frame.servo_destination['pan']} (Type: {type(new_frame.servo_destination['pan'])})")
+            print(f"[DONE] new_frame.servo_step_size['pan']:   {new_frame.servo_step_size['pan']}")
+            print(f"[DONE] self.current_servo_position['pan']: {self.current_servo_position['pan']} ")
+            print(f"[DONE] new_frame.servo_destination['tilt']: {new_frame.servo_destination['tilt']} (Type: {type(new_frame.servo_destination['tilt'])})")
+            print(f"[DONE] new_frame.servo_step_size['tilt']:   {new_frame.servo_step_size['tilt']}")
+            print(f"[DONE] self.current_servo_position['tilt']: {self.current_servo_position['tilt']} ")
 
             return True
 
         else:
-            self.current_servo_position["pan"]  = new_frame.servo_destination["pan"]  + new_frame.servo_step_size["pan"]
-            self.current_servo_position["tilt"] = new_frame.servo_destination["tilt"] + new_frame.servo_step_size["tilt"]
+            self.current_servo_position["pan"]  = self.current_servo_position["pan"]  + new_frame.servo_step_size["pan"]
+            self.current_servo_position["tilt"] = self.current_servo_position["tilt"] + new_frame.servo_step_size["tilt"]
             
-            servo_reg = ServoRegistry.get_instance()
-            servo_reg.servos["pan"].write_value(self.current_servo_position["pan"])
-            servo_reg.servos["tilt"].write_value(self.current_servo_position["tilt"])
+            self.servo_registry.servos["pan"].write_value(self.current_servo_position["pan"])
+            self.servo_registry.servos["tilt"].write_value(self.current_servo_position["tilt"])
+
+            #print(f"[DEBUG] new_frame.servo_destination['pan']: {new_frame.servo_destination['pan']} (Type: {type(new_frame.servo_destination['pan'])})")
+            #print(f"[DEBUG] new_frame.servo_step_size['pan']:   {new_frame.servo_step_size['pan']}")
+            print(f"[MOTION] self.current_servo_position['pan']: {self.current_servo_position['pan']:.1f} ")
+
+            #print(f"[DEBUG] new_frame.servo_destination['tilt']: {new_frame.servo_destination['tilt']} (Type: {type(new_frame.servo_destination['tilt'])})")
+            #print(f"[DEBUG] new_frame.servo_step_size['tilt']:   {new_frame.servo_step_size['tilt']}")
+            print(f"[MOTION] self.current_servo_position['tilt']: {self.current_servo_position['tilt']:.1f} ")
 
             new_frame.servo_steps_left -= 1
+            print(f"[STEPS] new_frame.servo_steps_left: {new_frame.servo_steps_left}")
             return False
 
 
-    def generate_base_keyframe(self, pan_degrees, tilt_degrees):
-        new_frame = Keyframe(target_time=(millis() + self.transition_time), name="sitting")
+    def generate_base_keyframe(self, pan_degrees:int, tilt_degrees:int):
+        new_frame = Keyframe(target_time=(millis() + self.transition_time), name="base")
         new_frame.servo_destination["pan"]  = pan_degrees
         new_frame.servo_destination["tilt"] = tilt_degrees
         return(new_frame)
 
 
     def relax_all_servos(self):
-        servo_reg = ServoRegistry.get_instance()
-        servo_reg.servos["pan"].relax()
-        servo_reg.servos["tilt"].relax()
+        self.servo_registry.servos["pan"].relax()
+        self.servo_registry.servos["tilt"].relax()
 
 
     def get_next_action(self):

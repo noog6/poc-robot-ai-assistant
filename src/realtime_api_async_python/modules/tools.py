@@ -17,6 +17,9 @@ from .llm import parse_markdown_backticks, structured_output_prompt, chat_prompt
 from .memory_management import memory_manager
 from .logging import log_info
 from .ServoRegistry import ServoRegistry
+from .motion_controller import MotionController, millis
+from .action import Action
+from .keyframe import Keyframe
 from .utils import (
     timeit_decorator,
     ModelName,
@@ -218,21 +221,33 @@ async def get_random_number():
 
 
 @timeit_decorator
-async def set_pan(degrees: int):
-    servo_reg = ServoRegistry.get_instance()
-    servo_reg.servos['pan'].write_value(degrees)
+async def set_pan(degrees: float):
+    motion_controller = MotionController.get_instance()
+    current_tilt_degrees = motion_controller.servo_registry.servos['tilt'].read_value()
+    print(f"control loop index: {motion_controller.control_loop_index} ~ control loop alive: {motion_controller.is_control_loop_alive()}")
+    base_frame = motion_controller.generate_base_keyframe(tilt_degrees=current_tilt_degrees, pan_degrees=degrees)
+    base_frame.final_target_time = 3000
+    print(f"New_Pan Frame: {base_frame}")
+    new_action = Action(1, (millis() + 500), "New_Pan", base_frame)
+    motion_controller.add_action_to_queue(new_action)
 
 
 @timeit_decorator
-async def set_tilt(degrees: int):
-    servo_reg = ServoRegistry.get_instance()
-    servo_reg.servos['tilt'].write_value(degrees)
+async def set_tilt(degrees: float):
+    motion_controller = MotionController.get_instance()
+    current_pan_degrees = motion_controller.servo_registry.servos['pan'].read_value()
+    print(f"control loop index: {motion_controller.control_loop_index} ~ control loop alive: {motion_controller.is_control_loop_alive()}")
+    base_frame = motion_controller.generate_base_keyframe(tilt_degrees=degrees, pan_degrees=current_pan_degrees)
+    base_frame.final_target_time = 2000
+    print(f"New_Tilt Frame: {base_frame}")
+    new_action = Action(1, (millis() + 500), "New_Tilt", base_frame)
+    motion_controller.add_action_to_queue(new_action)
 
 
 @timeit_decorator
 async def get_servo_position(servo_name: str):
-    servo_reg = ServoRegistry.get_instance()
-    current_position = servo_reg.servos[servo_name].read_value()
+    motion_controller = MotionController.get_instance()
+    current_position  = motion_controller.servo_reg.servos[servo_name].read_value()
     return current_position
 
 
