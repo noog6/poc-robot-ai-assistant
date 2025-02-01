@@ -12,11 +12,11 @@ from typing import Any, Dict, Tuple, List, Optional
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from enum import Enum
-from .ADS1015Sensor import ADS1015Sensor
+from .ads1015_sensor import ADS1015Sensor
 from .llm import parse_markdown_backticks, structured_output_prompt, chat_prompt
 from .memory_management import memory_manager
 from .logging import log_info
-from .ServoRegistry import ServoRegistry
+from .servo_registry import ServoRegistry
 from .motion_controller import MotionController, millis
 from .action import Action
 from .keyframe import Keyframe

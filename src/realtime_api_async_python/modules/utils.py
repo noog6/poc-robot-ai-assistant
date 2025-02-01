@@ -10,7 +10,7 @@ import pyaudio
 #from firecrawl import FirecrawlApp
 import tempfile
 import subprocess
-from .ServoRegistry import ServoRegistry
+from .servo_registry    import ServoRegistry
 from .motion_controller import MotionController
 
 RUN_TIME_TABLE_LOG_JSON = "runtime_time_table.jsonl"

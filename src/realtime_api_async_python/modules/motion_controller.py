@@ -2,9 +2,9 @@ import threading
 import time
 import traceback
 import heapq
-from .action        import Action
-from .keyframe      import Keyframe
-from .ServoRegistry import ServoRegistry
+from .action         import Action
+from .keyframe       import Keyframe
+from .servo_registry import ServoRegistry
 
 
 def millis():

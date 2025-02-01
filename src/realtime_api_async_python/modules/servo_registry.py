@@ -1,5 +1,5 @@
-from .PCA9685Actuator      import PCA9685Actuator
-from .ServoActuator        import ServoActuator
+from .pca9685_servo_controller import PCA9685Actuator
+from .servo_actuator           import ServoActuator
 
 class ServoRegistry:
     _instance = None
