@@ -13,7 +13,7 @@ class Keyframe:
         self.next              = None
 
     def __str__(self):
-        return f'pan :{self.servo_destination["pan"]:.3f}' + \
+        return f'pan :{self.servo_destination["pan"]:.3f} ' + \
                f'tilt:{self.servo_destination["tilt"]:.3f}'
 
     def to_dict(self):
