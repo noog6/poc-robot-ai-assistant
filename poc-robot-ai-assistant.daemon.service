@@ -1,0 +1,39 @@
+# Systemd service configuration for poc-robot-ai-assistant daemon
+#
+# Big thanks to: https://roboticsbackend.com/make-a-raspberry-pi-3-program-start-on-boot/
+#
+# To install:
+# ===========
+# 1) Copy this file into the systemd area : sudo cp poc-robot-ai-assistant.daemon.service /lib/systemd/system/
+# 2) Refresh system cache for services    : sudo systemctl daemon-reload
+# 3) Make our service start on boot       : sudo systemctl enable poc-robot-ai-assistant.daemon.service
+# 4) Force AI assistant to start now      : sudo service poc-robot-ai-assistant.daemon start
+#
+# Quick Reference:
+# ================
+# start service                           : sudo service poc-robot-ai-assistant.daemon start
+#
+# restart service                         : sudo service poc-robot-ai-assistant.daemon restart
+#
+# stop service                            : sudo service poc-robot-ai-assistant.daemon stop
+#
+
+[Unit]
+Description=poc-robot-ai-assistant is a generative AI based robot controller
+After=multi-user.target sound.target
+
+[Service]
+Type=simple
+User=pi
+ExecStartPre=/bin/bash -c "arecord -L > /home/pi/workarea/poc-robot-ai-assistant/log/alsa_devices.log"
+ExecStart=/home/pi/.local/bin/uv run main --prompts="Say Hello World! or whatever fun salutation you prefer"
+Restart=always
+WorkingDirectory=/home/pi/workarea/poc-robot-ai-assistant/
+Nice=19
+StandardOutput=append:/home/pi/workarea/poc-robot-ai-assistant/log/poc-robot-ai-assistant.log
+StandardError=append:/home/pi/workarea/poc-robot-ai-assistant/log/poc-robot-ai-assistant-error.log
+Environment="ALSA_CONFIG_PATH=/etc/asound.conf"
+
+[Install]
+WantedBy=multi-user.target
+

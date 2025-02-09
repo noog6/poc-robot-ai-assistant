@@ -26,7 +26,6 @@
 - `scrap_to_file_from_clipboard`: Gets a URL from the clipboard, scrapes its content, and saves it to a file in the scratch_pad_dir.
 
 ## Data Visualization
-- `generate_diagram`: Generates mermaid diagrams based on the user's prompt.
 - `create_python_chart`: Generates a Python script to create a chart based on the user's prompt and a specified CSV file. The function reads the CSV file, provides a preview of the data, and generates code for creating the requested chart type using libraries like matplotlib or seaborn.
 
 ## AI Assistant Chat History Management

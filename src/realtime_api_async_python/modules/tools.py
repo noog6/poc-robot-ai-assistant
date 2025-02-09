@@ -12,9 +12,14 @@ from typing import Any, Dict, Tuple, List, Optional
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from enum import Enum
+from .ads1015_sensor import ADS1015Sensor
 from .llm import parse_markdown_backticks, structured_output_prompt, chat_prompt
 from .memory_management import memory_manager
 from .logging import log_info
+from .servo_registry import ServoRegistry
+from .motion_controller import MotionController, millis
+from .action import Action
+from .keyframe import Keyframe
 from .utils import (
     timeit_decorator,
     ModelName,
@@ -24,7 +29,6 @@ from .utils import (
     scrap_url_clean,
     run_uv_script,
 )
-from .mermaid import generate_diagram
 from .database import get_database_instance
 import re
 
@@ -214,6 +218,50 @@ async def get_current_time():
 @timeit_decorator
 async def get_random_number():
     return {"random_number": random.randint(1, 100)}
+
+
+@timeit_decorator
+async def set_pan(degrees: float):
+    motion_controller = MotionController.get_instance()
+    current_tilt_degrees = motion_controller.servo_registry.servos['tilt'].read_value()
+    print(f"control loop index: {motion_controller.control_loop_index} ~ control loop alive: {motion_controller.is_control_loop_alive()}")
+    base_frame = motion_controller.generate_base_keyframe(tilt_degrees=current_tilt_degrees, pan_degrees=degrees)
+    base_frame.final_target_time = 3000
+    print(f"New_Pan Frame: {base_frame}")
+    new_action = Action(1, (millis() + 500), "New_Pan", base_frame)
+    motion_controller.add_action_to_queue(new_action)
+
+
+@timeit_decorator
+async def set_tilt(degrees: float):
+    motion_controller = MotionController.get_instance()
+    current_pan_degrees = motion_controller.servo_registry.servos['pan'].read_value()
+    print(f"control loop index: {motion_controller.control_loop_index} ~ control loop alive: {motion_controller.is_control_loop_alive()}")
+    base_frame = motion_controller.generate_base_keyframe(tilt_degrees=degrees, pan_degrees=current_pan_degrees)
+    base_frame.final_target_time = 2000
+    print(f"New_Tilt Frame: {base_frame}")
+    new_action = Action(1, (millis() + 500), "New_Tilt", base_frame)
+    motion_controller.add_action_to_queue(new_action)
+
+
+@timeit_decorator
+async def get_servo_position(servo_name: str):
+    motion_controller = MotionController.get_instance()
+    current_position  = motion_controller.servo_reg.servos[servo_name].read_value()
+    return current_position
+
+
+@timeit_decorator
+async def read_battery_voltage():
+    resistor_r1 = 9750
+    resistor_r2 = 6770
+
+    analog_sensor   = ADS1015Sensor.get_instance()
+    data            = analog_sensor.single_read(3)
+    analog_reading  = (data * 2) / 1000
+    battery_voltage = round(analog_reading * ( (resistor_r1 + resistor_r2) / resistor_r2 ), 2)
+
+    return {"current_battery_voltage": battery_voltage }
 
 
 @timeit_decorator
@@ -1598,7 +1646,6 @@ function_map = {
     "reset_active_memory": reset_active_memory,
     "add_to_memory": add_to_memory,
     "scrap_to_file_from_clipboard": scrap_to_file_from_clipboard,
-    "generate_diagram": generate_diagram,
     "runnable_code_check": runnable_code_check,
     "run_python": run_python,
     "ingest_file": ingest_file,
@@ -1609,6 +1656,10 @@ function_map = {
     "generate_sql_and_execute": generate_sql_and_execute,
     "run_sql_file": run_sql_file,
     "create_python_chart": create_python_chart,
+    "read_battery_voltage": read_battery_voltage,
+    "set_pan": set_pan,
+    "set_tilt": set_tilt,
+    "get_servo_position": get_servo_position,
 }
 
 # Tools array for session initialization
@@ -1882,25 +1933,6 @@ tools = [
     },
     {
         "type": "function",
-        "name": "generate_diagram",
-        "description": "Generates mermaid diagrams based on the user's prompt.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "prompt": {
-                    "type": "string",
-                    "description": "The user's prompt describing the diagram to generate.",
-                },
-                "version_count": {
-                    "type": "integer",
-                    "description": "The total number of diagram versions to generate. Defaults to 1 if not specified.",
-                },
-            },
-            "required": ["prompt"],  # 'version_count' is optional
-        },
-    },
-    {
-        "type": "function",
         "name": "runnable_code_check",
         "description": "Checks if the code in the specified file is runnable and provides necessary changes if not.",
         "parameters": {
@@ -1992,6 +2024,69 @@ tools = [
                 },
             },
             "required": ["prompt"],
+        },
+    },
+    {
+        "type": "function",
+        "name": "read_battery_voltage",
+        "description": "Fetches the current voltage of the onboard 2S LiPo battery. Safe operating range is 7.0V to 8.4V. If we are near the max voltage that is ok, but if we are within 0.5 volts of the minimum voltage start to get sassy and complain about it.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
+    {
+        "type": "function",
+        "name": "set_pan",
+        "description": "Sets the left and right pan servo to an absolute position between -90 and +90 degrees. If someone asks you to look left - you pan left! If someone asks you to look right - you pan right!",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "degrees": {
+                    "type": "integer",
+                    "description": "The target pan position in degrees, where 0 is the neutral/middle position, -90 is full left, and +90 is full right.",
+                    "minimum": -90,
+                    "maximum": 90,
+                },
+            },
+            "required": ["degrees"],
+        },
+    },
+    {
+        "type": "function",
+        "name": "set_tilt",
+        "description": "Sets the up and down tilt servo to an absolute position between -45 and +45 degrees. If someone asks you to look up - you tilt up! If they ask you to look down - you tilt down!",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "degrees": {
+                    "type": "integer",
+                    "description": "The target tilt position in degrees, where 0 is the neutral/middle position, -45 is full down, and +45 is full up.",
+                    "minimum": -45,
+                    "maximum": 45,
+                },
+            },
+            "required": ["degrees"],
+        },
+    },
+    {
+        "type": "function",
+        "name": "get_servo_position",
+        "description": "Reads the current position from the servo requested and return that servo position back.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                 "servo_name": {
+                    "type": "string",
+                    "enum": [
+                        "pan",
+                        "tilt",
+                    ],
+                    "description": "The name of the servo to lookup the position from.",
+                },
+            },
+            "required": ["servo_name"],
         },
     },
 ]
