@@ -6,6 +6,12 @@ from .utils import FORMAT, CHANNELS, RATE, CHUNK
 class AsyncMicrophone:
     def __init__(self):
         self.p = pyaudio.PyAudio()
+        print("Listing input devices:")
+        for i in range(self.p.get_device_count()):
+            info = self.p.get_device_info_by_index(i)
+            print(f"Device {i}: {info['name']} | Input Channels: {info['maxInputChannels']}")
+        print("Completed device list")
+
         self.stream = self.p.open(
             format=FORMAT,
             channels=CHANNELS,
