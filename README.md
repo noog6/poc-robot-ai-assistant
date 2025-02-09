@@ -40,7 +40,7 @@
 ```
 sudo apt update
 sudo apt upgrade
-sudo apt install alsa-utils pulseaudio python3-pip python3-smbus git libasound-dev portaudio19-dev python-all-dev libsndfile1 joystick ffmpeg python3-picamera2
+sudo apt install alsa-utils pulseaudio python3-pip python3-smbus python3-pyaudio git libasound2-dev portaudio19-dev libsndfile1 joystick ffmpeg python3-picamera2 uv
 ```
 > Then we pull down Theo's application:
 ```
