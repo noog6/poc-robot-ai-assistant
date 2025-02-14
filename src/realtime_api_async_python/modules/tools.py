@@ -226,7 +226,7 @@ async def set_pan(degrees: float):
     current_tilt_degrees = motion_controller.servo_registry.servos['tilt'].read_value()
     print(f"control loop index: {motion_controller.control_loop_index} ~ control loop alive: {motion_controller.is_control_loop_alive()}")
     base_frame = motion_controller.generate_base_keyframe(tilt_degrees=current_tilt_degrees, pan_degrees=degrees)
-    base_frame.final_target_time = 3000
+    base_frame.final_target_time = 1500
     print(f"New_Pan Frame: {base_frame}")
     new_action = Action(1, (millis() + 500), "New_Pan", base_frame)
     motion_controller.add_action_to_queue(new_action)
@@ -238,7 +238,7 @@ async def set_tilt(degrees: float):
     current_pan_degrees = motion_controller.servo_registry.servos['pan'].read_value()
     print(f"control loop index: {motion_controller.control_loop_index} ~ control loop alive: {motion_controller.is_control_loop_alive()}")
     base_frame = motion_controller.generate_base_keyframe(tilt_degrees=degrees, pan_degrees=current_pan_degrees)
-    base_frame.final_target_time = 2000
+    base_frame.final_target_time = 1000
     print(f"New_Tilt Frame: {base_frame}")
     new_action = Action(1, (millis() + 500), "New_Tilt", base_frame)
     motion_controller.add_action_to_queue(new_action)
