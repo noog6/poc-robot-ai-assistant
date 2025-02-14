@@ -7,7 +7,7 @@ import asyncio
 from datetime import datetime
 from enum import Enum
 import pyaudio
-#from firecrawl import FirecrawlApp
+from firecrawl import FirecrawlApp
 import tempfile
 import subprocess
 from .servo_registry    import ServoRegistry
@@ -20,7 +20,6 @@ CHUNK = 2048
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 24000
-
 
 class ModelName(str, Enum):
     state_of_the_art_model = "state_of_the_art_model"
@@ -101,17 +100,14 @@ ai_assistant_name = personalization.get("ai_assistant_name", "Assistant")
 human_name = personalization.get("human_name", "User")
 
 SESSION_INSTRUCTIONS = (
-    f"You are {ai_assistant_name}, a helpful assistant. Respond to {human_name}. "
+    f"You are {ai_assistant_name}, a helpful desktop robot assistant. Respond to {human_name}. "
     f"{personalization.get('system_message_suffix', '')}"
 )
-PREFIX_PADDING_MS = 400
+PREFIX_PADDING_MS = 500
 SILENCE_THRESHOLD = 0.2
 SILENCE_DURATION_MS = 900
 
 # Start up servo controller sub-system
-#servo_reg = ServoRegistry.get_instance()
-#servo_reg.servos['pan'].neutral_position()
-#servo_reg.servos['tilt'].neutral_position()
 motion_controller = MotionController.get_instance()
 motion_controller.start_control_loop()
 
@@ -142,10 +138,9 @@ def scrap_url(url: str, formats: list = ["markdown", "html"]) -> dict:
     api_key = os.getenv("FIRECRAWL_API_KEY")
     if not api_key:
         raise ValueError("FIRECRAWL_API_KEY environment variable not set")
-    #app = FirecrawlApp(api_key=api_key)
-    #scrape_status = app.scrape_url(url, params={"formats": formats})
-    #return scrape_status
-    return []
+    app = FirecrawlApp(api_key=api_key)
+    scrape_status = app.scrape_url(url, params={"formats": formats})
+    return scrape_status
 
 def scrap_url_clean(url: str) -> str:
     """
