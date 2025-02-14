@@ -19,20 +19,19 @@
 #
 
 [Unit]
-Description=poc-robot-ai-assistant is a generative AI based robot controller
-After=multi-user.target sound.target
+Description=Theo Generative AI Robot Assistant
+After=network.target sound.target
 
 [Service]
-Type=simple
-User=pi
-ExecStartPre=/bin/bash -c "arecord -L > /home/pi/workarea/poc-robot-ai-assistant/log/alsa_devices.log"
-ExecStart=/home/pi/.local/bin/uv run main --prompts="Say Hello World! or whatever fun salutation you prefer"
-Restart=always
+#ExecStartPre=/bin/bash -c "arecord -L > /home/pi/workarea/poc-robot-ai-assistant/log/alsa_devices.log"
+ExecStart=/home/pi/workarea/poc-robot-ai-assistant/.venv/bin/python src/realtime_api_async_python/main.py --prompts="Say Hello World! or whatever fun salutation you prefer"
+ExecStop=/bin/kill -SIGTERM $MAINPID
 WorkingDirectory=/home/pi/workarea/poc-robot-ai-assistant/
-Nice=19
+Environment="XDG_RUNTIME_DIR=/run/user/1000"
 StandardOutput=append:/home/pi/workarea/poc-robot-ai-assistant/log/poc-robot-ai-assistant.log
 StandardError=append:/home/pi/workarea/poc-robot-ai-assistant/log/poc-robot-ai-assistant-error.log
-Environment="ALSA_CONFIG_PATH=/etc/asound.conf"
+User=pi
+Restart=always
 
 [Install]
 WantedBy=multi-user.target

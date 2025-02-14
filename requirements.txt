@@ -1,0 +1,27 @@
+# Core dependencies
+websockets>=13.1
+python-dotenv>=1.0.1
+openai>=1.51.0
+pyaudio>=0.2.14
+numpy>=2.1.1
+pydantic>=2.9.2
+pytest>=8.3.3
+pyperclip>=1.9.0
+pillow>=10.4.0
+rich>=13.9.2
+pandas>=2.2.3
+psycopg2-binary>=2.9.9
+matplotlib>=3.9.2
+smbus
+firecrawl  # Assuming this is still needed
+
+# Camera-related dependencies
+#picamera2  # (If going back to picamera2)
+#opencv-python-headless  # (For OpenCV support)
+#rpi-libcamera  # (For direct libcamera support)
+
+# System-related dependencies (potentially useful)
+#simplejpeg  # Used in some image handling situations
+#requests  # Commonly used for HTTP requests
+#tqdm  # Progress bars if needed
+
