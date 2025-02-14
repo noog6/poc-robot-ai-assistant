@@ -8,24 +8,24 @@ import argparse
 from datetime import datetime
 from dotenv import load_dotenv
 from websockets.exceptions import ConnectionClosedError
-from .modules.logging import log_tool_call, log_error, log_info, log_warning
+from modules.logging import log_tool_call, log_error, log_info, log_warning
 
 # Import from modules
-from .modules.async_microphone import AsyncMicrophone
-from .modules.audio import play_audio
-from .modules.tools import (
+from modules.async_microphone import AsyncMicrophone
+from modules.audio import play_audio
+from modules.tools import (
     function_map,
     tools,
 )
-from .modules.utils import (
+from modules.utils import (
     RUN_TIME_TABLE_LOG_JSON,
     SESSION_INSTRUCTIONS,
     PREFIX_PADDING_MS,
     SILENCE_THRESHOLD,
     SILENCE_DURATION_MS,
 )
-from .modules.logging import logger, log_ws_event
-#from .modules.camera_controller import CameraController
+from modules.logging import logger, log_ws_event
+from modules.camera_controller import CameraController
 import sys
 
 # Load environment variables
@@ -76,6 +76,7 @@ class RealtimeAPI:
             sys.exit(1)
         self.exit_event = asyncio.Event()
         self.mic = AsyncMicrophone()
+        self.loop = None
 
         # Initialize state variables
         self.assistant_reply = ""
@@ -87,6 +88,7 @@ class RealtimeAPI:
         self.websocket = None
 
     async def run(self):
+        self.loop = asyncio.get_running_loop()
         while True:
             try:
                 url = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17"
@@ -97,7 +99,7 @@ class RealtimeAPI:
 
                 async with websockets.connect(
                     url,
-                    extra_headers=headers,
+                    additional_headers=headers,
                     close_timeout=120,
                     ping_interval=30,
                     ping_timeout=10,
@@ -334,16 +336,18 @@ class RealtimeAPI:
         log_ws_event("Outgoing", response_create_event)
         await websocket.send(json.dumps(response_create_event))
 
-    def send_text_message_to_conversation(self, text_message):
-        text_item = {
+    async def send_text_message_to_conversation(self, text_message):
+        text_event = {
             "type": "conversation.item.create",
             "item": {
                 "type": "message",
-                "role": "assistant",
-                "content": [{"type": "text", "text": text_message}],
+                "role": "user",
+                "content": [{"type": "input_text", 
+                             "text": text_message}],
             },
         }
-        send.websocket.send(json.dumps(text_item))
+        await self.websocket.send(json.dumps(text_event))
+        await self.websocket.send(json.dumps({"type": "response.create"}))
 
     async def send_audio_loop(self, websocket):
         try:
@@ -374,9 +378,6 @@ class RealtimeAPI:
 
 
 def main():
-    print(f"Starting camera controller...")
-#    camera_instance = CameraController.get_instance()
-
     print(f"Starting realtime API...")
     logger.info(f"Starting realtime API...")
     parser = argparse.ArgumentParser(
@@ -384,12 +385,16 @@ def main():
     )
     parser.add_argument("--prompts", type=str, help="Prompts separated by |")
     args = parser.parse_args()
-
     prompts = args.prompts.split("|") if args.prompts else None
-
     realtime_api_instance = RealtimeAPI(prompts)
-#    camera.realtime_controller = realtime_api_instance
-#    camera.start_vision_loop()
+    
+    print(f"Starting camera controller...")
+    camera_instance = CameraController.get_instance()
+    print("Starting vision thread...")
+    camera_instance.set_realtime_instance(realtime_api_instance)
+    print(f"Camera realtime instance set to: {camera_instance.realtime_instance}")
+    camera_instance.start_vision_loop(vision_loop_frequency=5000)
+    
     try:
         asyncio.run(realtime_api_instance.run())
     except KeyboardInterrupt:
