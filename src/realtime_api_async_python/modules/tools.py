@@ -221,10 +221,10 @@ async def get_random_number():
 
 
 @timeit_decorator
-async def set_pan(degrees: float):
+def set_pan(degrees: float):
     motion_controller = MotionController.get_instance()
     current_tilt_degrees = motion_controller.servo_registry.servos['tilt'].read_value()
-    print(f"control loop index: {motion_controller.control_loop_index} ~ control loop alive: {motion_controller.is_control_loop_alive()}")
+    #print(f"control loop index: {motion_controller.control_loop_index} ~ control loop alive: {motion_controller.is_control_loop_alive()}")
     base_frame = motion_controller.generate_base_keyframe(tilt_degrees=current_tilt_degrees, pan_degrees=degrees)
     base_frame.final_target_time = 1500
     print(f"New_Pan Frame: {base_frame}")
@@ -234,14 +234,25 @@ async def set_pan(degrees: float):
 
 
 @timeit_decorator
-async def set_tilt(degrees: float):
+def set_tilt(degrees: float):
     motion_controller = MotionController.get_instance()
     current_pan_degrees = motion_controller.servo_registry.servos['pan'].read_value()
-    print(f"control loop index: {motion_controller.control_loop_index} ~ control loop alive: {motion_controller.is_control_loop_alive()}")
+    #print(f"control loop index: {motion_controller.control_loop_index} ~ control loop alive: {motion_controller.is_control_loop_alive()}")
     base_frame = motion_controller.generate_base_keyframe(tilt_degrees=degrees, pan_degrees=current_pan_degrees)
     base_frame.final_target_time = 1000
     print(f"New_Tilt Frame: {base_frame}")
     new_action = Action(1, (millis() + 500), "New_Tilt", base_frame)
+    motion_controller.add_action_to_queue(new_action)
+    return ""
+
+
+@timeit_decorator
+def set_all_servos(new_tilt_degrees: float, new_pan_degrees: float):
+    motion_controller = MotionController.get_instance()
+    base_frame = motion_controller.generate_base_keyframe(tilt_degrees=new_tilt_degrees, pan_degrees=new_pan_degrees)
+    base_frame.final_target_time = 500
+    print(f"New_Tilt Frame: {base_frame}")
+    new_action = Action(1, (millis() + 200), "Move_Both_Servos", base_frame)
     motion_controller.add_action_to_queue(new_action)
     return ""
 
@@ -1662,7 +1673,8 @@ function_map = {
     "set_pan": set_pan,
     "set_tilt": set_tilt,
     "get_servo_position": get_servo_position,
-}
+    "set_all_servos": set_all_servos,
+    }
 
 # Tools array for session initialization
 tools = [
@@ -2096,55 +2108,27 @@ tools = [
 servo_tools = [
     {
         "type": "function",
-        "name": "set_pan",
-        "description": "Sets the left and right pan servo to an absolute position between -90 and +90 degrees. If someone asks you to look left - you pan left! If someone asks you to look right - you pan right!",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "degrees": {
-                    "type": "integer",
-                    "description": "The target pan position in degrees, where 0 is the neutral/middle position, -90 is full left, and +90 is full right.",
-                    "minimum": -90,
-                    "maximum": 90,
+        "function": {
+            "name": "set_all_servos",
+            "description": "Directs the pan and tilt servos to a new absolute position in degrees. If someone asks you to look left - you pan left! If someone asks you to look right - you pan right! If someone tells you to look up - you tilt up! If someone tells you to look down - you tilt down!",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "new_pan_degrees": {
+                        "type": "integer",
+                        "description": "The target pan angle in degrees, where 0 is the neutral/middle position, -90 is full left and +90 is full right.",
+                        "minimum": -90,
+                        "maximum": 90,
+                    },
+                    "new_tilt_degrees": {
+                        "type": "integer",
+                        "description": "The target tilt angle in degrees, where 0 is the neutral/middle position, -45 is full down and +45 is full up.",
+                        "minimum": -45,
+                        "maximum": 45,
+                    },
                 },
+                "required": ["new_pan_degrees","new_tilt_degrees"],
             },
-            "required": ["degrees"],
-        },
-    },
-    {
-        "type": "function",
-        "name": "set_tilt",
-        "description": "Sets the up and down tilt servo to an absolute position between -45 and +45 degrees. If someone asks you to look up - you tilt up! If they ask you to look down - you tilt down!",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "degrees": {
-                    "type": "integer",
-                    "description": "The target tilt position in degrees, where 0 is the neutral/middle position, -45 is full down, and +45 is full up.",
-                    "minimum": -45,
-                    "maximum": 45,
-                },
-            },
-            "required": ["degrees"],
-        },
-    },
-    {
-        "type": "function",
-        "name": "get_servo_position",
-        "description": "Reads the current position from the servo requested and return that servo position back.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                 "servo_name": {
-                    "type": "string",
-                    "enum": [
-                        "pan",
-                        "tilt",
-                    ],
-                    "description": "The name of the servo to lookup the position from.",
-                },
-            },
-            "required": ["servo_name"],
         },
     },
 ]

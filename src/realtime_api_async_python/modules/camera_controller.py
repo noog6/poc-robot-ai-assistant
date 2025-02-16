@@ -9,7 +9,8 @@ from io import BytesIO
 from picamera2 import Picamera2
 from PIL import Image
 from openai import OpenAI
-from .motion_controller import millis
+from .motion_controller import MotionController, millis
+from .tools import function_map, servo_tools, set_all_servos
 
 class CameraController:
     _instance = None
@@ -28,7 +29,7 @@ class CameraController:
             self.vision_loop_frequency = 0
             self.vision_loop_start_time = [0] * 100
             self.vision_loop_index = 0
-            self.previous_visual_description = None
+            self.previous_visual_description = "Nothing"
             self.realtime_instance = None
             self.client = OpenAI()
 
@@ -59,22 +60,32 @@ class CameraController:
 
     def generate_vision_prompt(self, previous_response, conversation_context):
         prompt = (
-            "You are a vision processing system for an AI robotic assistant.\n\n"
-            "[Primary Directive: Your job is to analyze the included image carefully, "
+            "You are an AI robotic assistant.\n\n"
+            "[Primary Directive: \n"
+            "Your job is to analyze the included image carefully, "
             "track and notice details about people or objects you see, "
             "and then provide a description back to the user.]\n\n"
-            "[Secondary Directive: Also, you can influence the pan and tilt of the camera device. "
-            "If adjusting the pan or tilt of the camera would put a person or object into the middle of the image, "
-            "you can call functions such as set_pan or set_tilt to make camera adjustments if needed.]\n"
+            "[Secondary Directive: \n"
+            "Your secondary directiveis to update the pan and tilt of the camera servos using set_all_servos. "
+            "If adjusting the pan or tilt of the camera would put a person or object of interest into the middle of the image, "
+            "you can call the function set_all_servos with angles for pan and tilt to make camera adjustments if needed."
+            "\nDo not talk about making any camera adjustments or mentioning the pan or tilt settings when responding to the user!!!]\n\n"
         )
     
+        motion_instance = MotionController.get_instance()
+        if motion_instance:
+            pan_angle  = round(motion_instance.servo_registry.servos['pan'].read_value(),  2)
+            tilt_angle = round(motion_instance.servo_registry.servos['tilt'].read_value(), 2)
+            prompt += f"[Pan Servo  - Current Angle (degrees): {pan_angle}]\n"
+            prompt += f"[Tilt Servo - Current Angle (degrees): {tilt_angle}]\n\n"
+
         # 1️⃣ Inject Previous Prompt for Consistency
-        if previous_response:
-            prompt += f"[Previous vision analysis: {previous_response}]\n\n"
+        #if previous_response:
+        #    prompt += f"[Previous vision analysis: {previous_response}]\n\n"
     
         # 2️⃣ Use Conversation Context
-        if conversation_context:
-            prompt += f"[Context from recent conversation: {conversation_context}]\n\n"
+        #if conversation_context:
+        #    prompt += f"[Context from recent conversation: {conversation_context}]\n\n"
     
         # 3️⃣ Guide the Model Based on Context
         if "person" in conversation_context:
@@ -91,7 +102,8 @@ class CameraController:
         buffered = BytesIO()
         new_image.save(buffered, format="JPEG")
         encoded_image = base64.b64encode(buffered.getvalue()).decode("utf-8")
-        image_analysis_prompt = self.generate_vision_prompt(self.previous_visual_description, "There is a person in my area")
+        image_analysis_prompt = self.generate_vision_prompt(self.previous_visual_description, "There is a person in my general area")
+        print(f"\nVision Analysis Prompt:\n\n{image_analysis_prompt}\n")
         response = self.client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
@@ -109,9 +121,36 @@ class CameraController:
                     ],
                 }
             ],
+            tools=servo_tools,
         )
-        self.previous_visual_description = response.choices[0]
-        return response.choices[0]
+
+        self.previous_visual_description = response.choices[0].message.content
+        #print(f"Visual Description: \n{self.previous_visual_description}\n")
+        
+        tool_calls = response.choices[0].message.tool_calls
+        if tool_calls is None:
+            tool_calls = []
+        #print(f"Tool Calls Requested: \n{tool_calls}\n")
+        print("Visual Tool Calls: Starting\n")
+
+        for tool_call in tool_calls:
+            #print(f"Found tool call from vision:\n{tool_call}\n")
+            function_name = tool_call.function.name
+            args = json.loads(tool_call.function.arguments)
+            print(f"   {function_name}({args})\n")
+            
+            if function_name in function_map:
+                try:
+                    result = function_map[function_name](**args)
+                except Exception as e:
+                    error_message = f"Error executing function '{function_name}': {str(e)}"
+                    print(error_message)
+            else:
+                print(f"Unknown Function: {function_name}")
+
+        print("Visual Tool Calls: Finished\n")
+
+        return response.choices[0].message.content
 
     def take_image(self):
         # Capture an image as a NumPy array using picamera2
@@ -136,13 +175,14 @@ class CameraController:
                     print("Taking new image [o]")
                     if self.realtime_instance:
                         vision_response = self.process_image()
-                        visual_prompt = f" - DO NOT RESPOND BACK TO THIS MESSAGE - Only adjust the pan or tilt based on the visual feedback received and add this to the conversation.\n\n[Theo's Visual Context - What Theo currently sees: {vision_response.message.content}]"
-                        print(visual_prompt)
+                        visual_prompt = f"Do not respond to this message.\n[Visual Context - aka What you are currently seeing: \n{vision_response}]\n"
+                        print(f"Visual Analysis Response:\n\n{visual_prompt}")
                         self.previous_prompt = visual_prompt
                         asyncio.run_coroutine_threadsafe(
                             self.realtime_instance.send_text_message_to_conversation(visual_prompt),
                             self.realtime_instance.loop
                         )
+                        print("Finished processing image")
                     else:
                         print("Unable to take image - realtime instance not available")
                 except Exception as e:

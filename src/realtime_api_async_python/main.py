@@ -170,6 +170,7 @@ class RealtimeAPI:
                 "tools": tools,
             },
         }
+        #print(f"\nSession Instructions:\n{session_update}\n")
         log_ws_event("Outgoing", session_update)
         await websocket.send(json.dumps(session_update))
 
@@ -342,15 +343,21 @@ class RealtimeAPI:
         text_event = {
             "type": "response.create",
             "response": {
-                "modalities": [ "text" ],
+                # Setting conversation to "none" makes it so that the text sent is not
+                # added to the main conversation
                 #"conversation": "none",
+
+                # Adding metadata topic tag so that we can find the responses to these
+                "metadata": { "topic": "sending data" },
+
+                # We only want a text response to these out-of-band messages
+                "modalities": [ "text" ],
+                
+                # The body of our message
                 "instructions": text_message,
-                "tools": servo_tools,
-                "tool_choice": "required",
             },
         }
         await self.websocket.send(json.dumps(text_event))
-        await self.websocket.send(json.dumps({"type": "response.create"}))
 
     async def send_audio_loop(self, websocket):
         try:
@@ -378,7 +385,6 @@ class RealtimeAPI:
             self.mic.stop_recording()
             self.mic.close()
             await websocket.close()
-
 
 def main():
     print(f"Starting realtime API...")
