@@ -28,6 +28,7 @@ class CameraController:
             self.vision_loop_frequency = 0
             self.vision_loop_start_time = [0] * 100
             self.vision_loop_index = 0
+            self.previous_visual_description = None
             self.realtime_instance = None
             self.client = OpenAI()
 
@@ -56,11 +57,41 @@ class CameraController:
             print(f"Control loop stopped at index: {self.vision_loop_index}")
             self.vision_loop_index = 0
 
+    def generate_vision_prompt(self, previous_response, conversation_context):
+        prompt = (
+            "You are a vision processing system for an AI robotic assistant.\n\n"
+            "[Primary Directive: Your job is to analyze the included image carefully, "
+            "track and notice details about people or objects you see, "
+            "and then provide a description back to the user.]\n\n"
+            "[Secondary Directive: Also, you can influence the pan and tilt of the camera device. "
+            "If adjusting the pan or tilt of the camera would put a person or object into the middle of the image, "
+            "you can call functions such as set_pan or set_tilt to make camera adjustments if needed.]\n"
+        )
+    
+        # 1️⃣ Inject Previous Prompt for Consistency
+        if previous_response:
+            prompt += f"[Previous vision analysis: {previous_response}]\n\n"
+    
+        # 2️⃣ Use Conversation Context
+        if conversation_context:
+            prompt += f"[Context from recent conversation: {conversation_context}]\n\n"
+    
+        # 3️⃣ Guide the Model Based on Context
+        if "person" in conversation_context:
+            prompt += "If a person is in the image, describe their posture, actions, and any notable expressions. "
+        elif "object" in conversation_context:
+            prompt += "Focus on identifying key objects and their placement in the scene. "
+        elif "movement" in conversation_context:
+            prompt += "Analyze changes from the previous frame and determine if something is moving. "
+    
+        return prompt
+
     def process_image(self):
         new_image = self.take_image()
         buffered = BytesIO()
         new_image.save(buffered, format="JPEG")
         encoded_image = base64.b64encode(buffered.getvalue()).decode("utf-8")
+        image_analysis_prompt = self.generate_vision_prompt(self.previous_visual_description, "There is a person in my area")
         response = self.client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
@@ -69,7 +100,7 @@ class CameraController:
                     "content": [
                         {
                             "type": "text",
-                            "text": "What is in this image?",
+                            "text": image_analysis_prompt,
                         },
                         {
                             "type": "image_url",
@@ -79,6 +110,7 @@ class CameraController:
                 }
             ],
         )
+        self.previous_visual_description = response.choices[0]
         return response.choices[0]
 
     def take_image(self):
@@ -104,9 +136,11 @@ class CameraController:
                     print("Taking new image [o]")
                     if self.realtime_instance:
                         vision_response = self.process_image()
-                        print(f"Image response: {vision_response.message.content}")
+                        visual_prompt = f" - DO NOT RESPOND BACK TO THIS MESSAGE - Only adjust the pan or tilt based on the visual feedback received and add this to the conversation.\n\n[Theo's Visual Context - What Theo currently sees: {vision_response.message.content}]"
+                        print(visual_prompt)
+                        self.previous_prompt = visual_prompt
                         asyncio.run_coroutine_threadsafe(
-                                self.realtime_instance.send_text_message_to_conversation("What you are currently looking at: " + vision_response.message.content),
+                            self.realtime_instance.send_text_message_to_conversation(visual_prompt),
                             self.realtime_instance.loop
                         )
                     else:
@@ -120,7 +154,7 @@ class CameraController:
                     self.vision_loop_start_time.pop(0)
                 next_vision_loop_time = current_time + self.vision_loop_frequency
             else:
-                time.sleep(0.001)
+                time.sleep(0.01)
 
     def is_vision_loop_alive(self):
         return self._vision_loop_thread is not None and self._vision_loop_thread.is_alive()

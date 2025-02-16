@@ -100,7 +100,10 @@ ai_assistant_name = personalization.get("ai_assistant_name", "Assistant")
 human_name = personalization.get("human_name", "User")
 
 SESSION_INSTRUCTIONS = (
-    f"You are {ai_assistant_name}, a helpful desktop robot assistant. Respond to {human_name}. "
+    f"You are {ai_assistant_name}, a helpful desktop robot assistant, hanging out and ready to support your user - {human_name}!"
+    f"You will periodically receive text-based descriptions of images from {ai_assistant_name}'s camera. These descriptions provide visual context about the environment. You should consider this information when responding, but do not assume it is a direct user question unless explicitly stated."
+    f"You will also receive text-based sensor data from {ai_assistant_name}'s onboard sensors. These data readings are measured live from the environment and you can use this information in your reponses to {human_name}."
+    f"Do not announce or confirm function calls after execution. Simply proceed without commenting on their execution."
     f"{personalization.get('system_message_suffix', '')}"
 )
 PREFIX_PADDING_MS = 500

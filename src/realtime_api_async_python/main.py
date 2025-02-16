@@ -16,6 +16,7 @@ from modules.audio import play_audio
 from modules.tools import (
     function_map,
     tools,
+    servo_tools,
 )
 from modules.utils import (
     RUN_TIME_TABLE_LOG_JSON,
@@ -295,6 +296,7 @@ class RealtimeAPI:
             )
             await play_audio(audio_data)
             logger.info("Finished play_audio()")
+        print(f"Assistant Response: {self.assistant_reply}")
         self.assistant_reply = ""
         self.audio_chunks = []
         logger.info("Calling stop_receiving()")
@@ -338,12 +340,13 @@ class RealtimeAPI:
 
     async def send_text_message_to_conversation(self, text_message):
         text_event = {
-            "type": "conversation.item.create",
-            "item": {
-                "type": "message",
-                "role": "user",
-                "content": [{"type": "input_text", 
-                             "text": text_message}],
+            "type": "response.create",
+            "response": {
+                "modalities": [ "text" ],
+                #"conversation": "none",
+                "instructions": text_message,
+                "tools": servo_tools,
+                "tool_choice": "required",
             },
         }
         await self.websocket.send(json.dumps(text_event))

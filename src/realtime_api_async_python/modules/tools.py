@@ -230,6 +230,7 @@ async def set_pan(degrees: float):
     print(f"New_Pan Frame: {base_frame}")
     new_action = Action(1, (millis() + 500), "New_Pan", base_frame)
     motion_controller.add_action_to_queue(new_action)
+    return ""
 
 
 @timeit_decorator
@@ -242,6 +243,7 @@ async def set_tilt(degrees: float):
     print(f"New_Tilt Frame: {base_frame}")
     new_action = Action(1, (millis() + 500), "New_Tilt", base_frame)
     motion_controller.add_action_to_queue(new_action)
+    return ""
 
 
 @timeit_decorator
@@ -2090,3 +2092,60 @@ tools = [
         },
     },
 ]
+
+servo_tools = [
+    {
+        "type": "function",
+        "name": "set_pan",
+        "description": "Sets the left and right pan servo to an absolute position between -90 and +90 degrees. If someone asks you to look left - you pan left! If someone asks you to look right - you pan right!",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "degrees": {
+                    "type": "integer",
+                    "description": "The target pan position in degrees, where 0 is the neutral/middle position, -90 is full left, and +90 is full right.",
+                    "minimum": -90,
+                    "maximum": 90,
+                },
+            },
+            "required": ["degrees"],
+        },
+    },
+    {
+        "type": "function",
+        "name": "set_tilt",
+        "description": "Sets the up and down tilt servo to an absolute position between -45 and +45 degrees. If someone asks you to look up - you tilt up! If they ask you to look down - you tilt down!",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "degrees": {
+                    "type": "integer",
+                    "description": "The target tilt position in degrees, where 0 is the neutral/middle position, -45 is full down, and +45 is full up.",
+                    "minimum": -45,
+                    "maximum": 45,
+                },
+            },
+            "required": ["degrees"],
+        },
+    },
+    {
+        "type": "function",
+        "name": "get_servo_position",
+        "description": "Reads the current position from the servo requested and return that servo position back.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                 "servo_name": {
+                    "type": "string",
+                    "enum": [
+                        "pan",
+                        "tilt",
+                    ],
+                    "description": "The name of the servo to lookup the position from.",
+                },
+            },
+            "required": ["servo_name"],
+        },
+    },
+]
+
