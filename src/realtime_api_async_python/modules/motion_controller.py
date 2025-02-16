@@ -123,30 +123,25 @@ class MotionController():
             if new_frame.servo_steps_left < 1:
                 new_frame.servo_steps_left = 1
 
-            print( "=============================")
-            print(f"New frame setup: {new_frame.name}")
-            print(f"new_frame.final_taraget_time: {new_frame.final_target_time}")
-            print(f"current_time                : {current_time}")
-            print(f"self.control_loop_frequency : {self.control_loop_frequency}")
-            print(f"new_frame.servo_steps_left: {new_frame.servo_steps_left}")
-            print( "=============================")
-            print(f"new_frame.servo_destination['pan']: {new_frame.servo_destination['pan']}")
-            print(f"Type of new_frame.servo_destination['pan']: {type(new_frame.servo_destination['pan'])}")
-            print(f"new_frame.servo_destination['tilt']: {new_frame.servo_destination['tilt']}")
-            print(f"Type of new_frame.servo_destination['tilt']: {type(new_frame.servo_destination['tilt'])}")
+            print( "==================================================")
+            print(f"New frame setup              : {new_frame.name}")
+            print(f"new_frame.final_taraget_time : {new_frame.final_target_time}")
+            print(f"current_time                 : {current_time}")
+            print(f"self.control_loop_frequency  : {self.control_loop_frequency}")
+            print(f"new_frame.servo_steps_left   : {new_frame.servo_steps_left}")
+            print( "==================================================\n")
             print("")
-            print(f"[DEBUG] new_frame.servo_destination['pan']: {new_frame.servo_destination['pan']} (Type: {type(new_frame.servo_destination['pan'])})")
-            print(f"[DEBUG] new_frame.servo_destination['tilt']: {new_frame.servo_destination['tilt']} (Type: {type(new_frame.servo_destination['tilt'])})")
 
             new_frame.servo_step_size["pan"]  = (new_frame.servo_destination["pan"]  - self.current_servo_position["pan"])  / new_frame.servo_steps_left
             new_frame.servo_step_size["tilt"] = (new_frame.servo_destination["tilt"] - self.current_servo_position["tilt"]) / new_frame.servo_steps_left
 
-            print(f"[SETUP] new_frame.servo_destination['pan']: {new_frame.servo_destination['pan']} (Type: {type(new_frame.servo_destination['pan'])})")
+            print(f"[SETUP] new_frame.servo_destination['pan']: {new_frame.servo_destination['pan']}")
             print(f"[SETUP] new_frame.servo_step_size['pan']:   {new_frame.servo_step_size['pan']}")
-            print(f"[SETUP] self.current_servo_position['pan']: {self.current_servo_position['pan']} ")
-            print(f"[SETUP] new_frame.servo_destination['tilt']: {new_frame.servo_destination['tilt']} (Type: {type(new_frame.servo_destination['tilt'])})")
+            print(f"[SETUP] self.current_servo_position['pan']: {self.current_servo_position['pan']}\n")
+
+            print(f"[SETUP] new_frame.servo_destination['tilt']: {new_frame.servo_destination['tilt']}")
             print(f"[SETUP] new_frame.servo_step_size['tilt']:   {new_frame.servo_step_size['tilt']}")
-            print(f"[SETUP] self.current_servo_position['tilt']: {self.current_servo_position['tilt']} ")
+            print(f"[SETUP] self.current_servo_position['tilt']: {self.current_servo_position['tilt']}\n")
 
             new_frame.is_initialized = True
 
@@ -157,12 +152,12 @@ class MotionController():
             self.servo_registry.servos["pan"].write_value(self.current_servo_position["pan"])
             self.servo_registry.servos["tilt"].write_value(self.current_servo_position["tilt"])
 
-            print(f"[DONE] new_frame.servo_destination['pan']: {new_frame.servo_destination['pan']} (Type: {type(new_frame.servo_destination['pan'])})")
+            print(f"[DONE] new_frame.servo_destination['pan']: {new_frame.servo_destination['pan']}")
             print(f"[DONE] new_frame.servo_step_size['pan']:   {new_frame.servo_step_size['pan']}")
-            print(f"[DONE] self.current_servo_position['pan']: {self.current_servo_position['pan']} ")
-            print(f"[DONE] new_frame.servo_destination['tilt']: {new_frame.servo_destination['tilt']} (Type: {type(new_frame.servo_destination['tilt'])})")
+            print(f"[DONE] self.current_servo_position['pan']: {self.current_servo_position['pan']} \n")
+            print(f"[DONE] new_frame.servo_destination['tilt']: {new_frame.servo_destination['tilt']}")
             print(f"[DONE] new_frame.servo_step_size['tilt']:   {new_frame.servo_step_size['tilt']}")
-            print(f"[DONE] self.current_servo_position['tilt']: {self.current_servo_position['tilt']} ")
+            print(f"[DONE] self.current_servo_position['tilt']: {self.current_servo_position['tilt']} \n")
 
             return True
 
@@ -173,16 +168,11 @@ class MotionController():
             self.servo_registry.servos["pan"].write_value(self.current_servo_position["pan"])
             self.servo_registry.servos["tilt"].write_value(self.current_servo_position["tilt"])
 
-            #print(f"[DEBUG] new_frame.servo_destination['pan']: {new_frame.servo_destination['pan']} (Type: {type(new_frame.servo_destination['pan'])})")
-            #print(f"[DEBUG] new_frame.servo_step_size['pan']:   {new_frame.servo_step_size['pan']}")
-            print(f"[MOTION] self.current_servo_position['pan']: {self.current_servo_position['pan']:.1f} ")
-
-            #print(f"[DEBUG] new_frame.servo_destination['tilt']: {new_frame.servo_destination['tilt']} (Type: {type(new_frame.servo_destination['tilt'])})")
-            #print(f"[DEBUG] new_frame.servo_step_size['tilt']:   {new_frame.servo_step_size['tilt']}")
-            print(f"[MOTION] self.current_servo_position['tilt']: {self.current_servo_position['tilt']:.1f} ")
+            #print(f"[MOTION] self.current_servo_position['pan']: {self.current_servo_position['pan']:.1f} ")
+            #print(f"[MOTION] self.current_servo_position['tilt']: {self.current_servo_position['tilt']:.1f} ")
 
             new_frame.servo_steps_left -= 1
-            print(f"[STEPS] new_frame.servo_steps_left: {new_frame.servo_steps_left}")
+            #print(f"[STEPS] new_frame.servo_steps_left: {new_frame.servo_steps_left}\n")
             return False
 
 
