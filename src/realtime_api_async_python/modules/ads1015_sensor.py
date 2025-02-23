@@ -58,7 +58,8 @@ class ADS1015Sensor():
             self._bus = smbus.SMBus(1)
             self.Config_Set = 0
             self.initialize()
-            
+            self.read_value()
+
             ADS1015Sensor._instance = self
         else:
             raise Exception("You cannot create another ADS1015Sensor class")
