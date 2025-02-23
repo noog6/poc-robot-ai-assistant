@@ -30,6 +30,7 @@ class CameraController:
             self.vision_loop_start_time = [0] * 100
             self.vision_loop_index = 0
             self.previous_visual_description = "Nothing"
+            self.current_conversation_context = "There is a person in my general area"
             self.realtime_instance = None
             self.client = OpenAI()
 
@@ -42,6 +43,10 @@ class CameraController:
         if not cls._instance:
             cls._instance = CameraController()
         return cls._instance
+
+    def update_conversation_context(self, new_context):
+        self.current_conversation_context = new_context
+        #print(f"Conversation Context was updated:\n{self.current_conversation_context}\n\n")
 
     def start_vision_loop(self, vision_loop_frequency=15000):
         if self._vision_loop_thread is None or not self._vision_loop_thread.is_alive():
@@ -60,16 +65,15 @@ class CameraController:
 
     def generate_vision_prompt(self, previous_response, conversation_context):
         prompt = (
-            "You are an AI robotic assistant.\n\n"
-            "[Primary Directive: \n"
-            "Your job is to analyze the included image carefully, "
-            "track and notice details about people or objects you see, "
-            "and then provide a description back to the user.]\n\n"
-            "[Secondary Directive: \n"
-            "Your secondary directiveis to update the pan and tilt of the camera servos using set_all_servos. "
-            "If adjusting the pan or tilt of the camera would put a person or object of interest into the middle of the image, "
-            "you can call the function set_all_servos with angles for pan and tilt to make camera adjustments if needed."
-            "\nDo not talk about making any camera adjustments or mentioning the pan or tilt settings when responding to the user!!!]\n\n"
+            "You are an AI robotic assistant with dual responsibilities: visual analysis and discreet actuation control.\n\n"
+            "[Primary Visual Analysis Role: \n"
+            "- Objective: Scrutinize the provided image meticulously to identify people, objects, and relevant details.\n"
+            "- Reporting: Deliver a succinct, user-facing description of the scene.\n"
+            "- Ambiguity Clause: If image quality is low or details are unclear, note the uncertainty and suggest a re-scan.]\n\n"
+            "[Secondary Actuation Role (Internal Only):\n"
+            "- Objective: Adjust the camera’s pan and tilt via set_all_servos to bring persons or objects of interest into optimal view.\n"
+            "- Directive: Execute these adjustments quietly—do not mention any servo settings or actions in your description.\n"
+            "- Subtle Reminder: If your camera’s perspective is as off-target as a sleep-deprived archer, recalibrate discreetly.]\n\n"
         )
     
         motion_instance = MotionController.get_instance()
@@ -79,22 +83,24 @@ class CameraController:
             prompt += f"[Pan Servo  - Current Angle (degrees): {pan_angle}]\n"
             prompt += f"[Tilt Servo - Current Angle (degrees): {tilt_angle}]\n\n"
 
+        # 2️⃣ Use Conversation Context
+        if conversation_context:
+            prompt += f"[Context from recent conversation: {conversation_context}\n\n"
+    
+            # 3️⃣ Guide the Model Based on Context
+            if "person" in conversation_context:
+                prompt += "If a person is in the image, describe their posture, actions, and any notable expressions.\n"
+            elif "object" in conversation_context:
+                prompt += "Focus on identifying key objects and their placement in the scene.\n"
+            elif "movement" in conversation_context:
+                prompt += "Analyze changes from the previous frame and determine if something is moving.\n"
+            
+            prompt +="]\n\n"
+        
         # 1️⃣ Inject Previous Prompt for Consistency
         #if previous_response:
-        #    prompt += f"[Previous vision analysis: {previous_response}]\n\n"
-    
-        # 2️⃣ Use Conversation Context
-        #if conversation_context:
-        #    prompt += f"[Context from recent conversation: {conversation_context}]\n\n"
-    
-        # 3️⃣ Guide the Model Based on Context
-        if "person" in conversation_context:
-            prompt += "If a person is in the image, describe their posture, actions, and any notable expressions. "
-        elif "object" in conversation_context:
-            prompt += "Focus on identifying key objects and their placement in the scene. "
-        elif "movement" in conversation_context:
-            prompt += "Analyze changes from the previous frame and determine if something is moving. "
-    
+        #    prompt += f"[Previous vision analysis response: {previous_response}]\n\n"
+
         return prompt
 
     def process_image(self):
@@ -102,7 +108,7 @@ class CameraController:
         buffered = BytesIO()
         new_image.save(buffered, format="JPEG")
         encoded_image = base64.b64encode(buffered.getvalue()).decode("utf-8")
-        image_analysis_prompt = self.generate_vision_prompt(self.previous_visual_description, "There is a person in my general area")
+        image_analysis_prompt = self.generate_vision_prompt(self.previous_visual_description, self.current_conversation_context)
         print(f"\nVision Analysis Prompt:\n\n{image_analysis_prompt}\n")
         response = self.client.chat.completions.create(
             model="gpt-4o-mini",
@@ -125,7 +131,6 @@ class CameraController:
         )
 
         self.previous_visual_description = response.choices[0].message.content
-        #print(f"Visual Description: \n{self.previous_visual_description}\n")
         
         tool_calls = response.choices[0].message.tool_calls
         if tool_calls is None:
@@ -165,6 +170,20 @@ class CameraController:
         final_image = Image.fromarray(flipped_image)
         return final_image
 
+    def generate_vision_response_and_context_prompt(self, vision_response):
+        prompt  = "Visual Memory & Situational Context Update:\n"
+        prompt += "Integrate the following scene description into your working memory as the latest visual snapshot. Then, based on this visual input and the ongoing conversation, provide a situational context update that encapsulates the current state and hints at potential next steps. Avoid mentioning internal processes or technical adjustments.\n\n"
+
+        prompt += f"[Visual Context:\n{vision_response}]\n\n"
+
+        prompt += "Your Tasks:\n\n"
+        prompt += "1) Memory Integration: Add the visual context to your memory.\n"
+        prompt += "2) Situational Update: Merge the visual details with our conversation context to generate a comprehensive situational report.\n"
+        prompt += "3) Reporting: Highlight key observations and propose any logical follow-up actions, ensuring clarity and relevance without divulging internal mechanics.\n\n"
+        prompt += "Proceed with your updated situational analysis. Do not ask any follow up questions.\n"
+
+        return prompt
+
     def _vision_loop(self):
         next_vision_loop_time = millis() + self.vision_loop_frequency
         while not self._stop_event.is_set():
@@ -175,8 +194,8 @@ class CameraController:
                     print("Taking new image [o]")
                     if self.realtime_instance:
                         vision_response = self.process_image()
-                        visual_prompt = f"Do not respond to this message.\n[Visual Context - aka What you are currently seeing: \n{vision_response}]\n"
-                        print(f"Visual Analysis Response:\n\n{visual_prompt}")
+                        visual_prompt = self.generate_vision_response_and_context_prompt(vision_response)
+                        print(f"Visual Analysis Response:\n{visual_prompt}\n")
                         self.previous_prompt = visual_prompt
                         asyncio.run_coroutine_threadsafe(
                             self.realtime_instance.send_text_message_to_conversation(visual_prompt),

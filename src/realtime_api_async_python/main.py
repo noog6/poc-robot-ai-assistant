@@ -16,7 +16,6 @@ from modules.audio import play_audio
 from modules.tools import (
     function_map,
     tools,
-    servo_tools,
 )
 from modules.utils import (
     RUN_TIME_TABLE_LOG_JSON,
@@ -297,8 +296,13 @@ class RealtimeAPI:
             )
             await play_audio(audio_data)
             logger.info("Finished play_audio()")
-        print(f"Assistant Response: {self.assistant_reply}")
-        self.assistant_reply = ""
+
+        if self.assistant_reply != "":
+            camera_instance = CameraController.get_instance()
+            camera_instance.update_conversation_context(self.assistant_reply)
+            print(f"New context was sent to vision controller:\n{self.assistant_reply}\n")
+            self.assistant_reply = ""
+        
         self.audio_chunks = []
         logger.info("Calling stop_receiving()")
         self.mic.stop_receiving()
@@ -355,6 +359,9 @@ class RealtimeAPI:
                 
                 # The body of our message
                 "instructions": text_message,
+
+                # The list of tools that can be used by this repsonse
+                #"tools": tools,
             },
         }
         await self.websocket.send(json.dumps(text_event))
