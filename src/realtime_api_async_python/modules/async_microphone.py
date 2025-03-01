@@ -1,3 +1,4 @@
+import numpy as np
 import pyaudio
 import queue
 import logging
@@ -27,8 +28,30 @@ class AsyncMicrophone:
 
     def callback(self, in_data, frame_count, time_info, status):
         if self.is_recording and not self.is_receiving:
+            audio_level = round( self.rms_numpy(in_data, 2), 2)
+            print(f"[Audio Volume: {audio_level}]")
             self.queue.put(in_data)
         return (None, pyaudio.paContinue)
+
+
+    def rms_numpy(self, audio_bytes, sample_width=2):
+        """
+        Compute RMS (Root Mean Square) volume level of an audio signal using NumPy.
+    
+        Parameters:
+            audio_bytes (bytes): The raw PCM audio data.
+            sample_width (int): The number of bytes per sample (default 2 for 16-bit audio).
+    
+        Returns:
+            float: RMS value of the audio signal.
+        """
+        dtype_map = {1: np.int8, 2: np.int16, 4: np.int32}
+        dtype = dtype_map.get(sample_width, np.int16)  # Default to 16-bit
+    
+        audio_array = np.frombuffer(audio_bytes, dtype=dtype)
+        rms_value = np.sqrt(np.mean(audio_array**2))
+    
+        return rms_value
 
     def start_recording(self):
         self.is_recording = True
