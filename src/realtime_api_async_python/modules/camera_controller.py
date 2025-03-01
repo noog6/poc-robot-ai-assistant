@@ -66,15 +66,18 @@ class CameraController:
 
     def generate_vision_prompt(self, previous_response, conversation_context):
         prompt = (
-            "You are an AI robotic assistant with dual responsibilities: visual analysis and discreet actuation control.\n\n"
+            "You are an AI robotic assistant with dual responsibilities: visual analysis and discreet actuation control.\n"
+            "\n"
             "[Primary Visual Analysis Role: \n"
             "- Objective: Scrutinize the provided image meticulously to identify people, objects, and relevant details.\n"
             "- Reporting: Deliver a succinct, user-facing description of the scene.\n"
-            "- Ambiguity Clause: If image quality is low or details are unclear, note the uncertainty and suggest a re-scan.]\n\n"
+            "- Ambiguity Clause: If image quality is low or details are unclear, note the uncertainty and suggest a re-scan.]\n"
+            "\n"
             "[Secondary Actuation Role (Internal Only):\n"
             "- Objective: Adjust the camera’s pan and tilt via set_all_servos to bring persons or objects of interest into optimal view.\n"
             "- Directive: Execute these adjustments quietly—do not mention any servo settings or actions in your description.\n"
-            "- Subtle Reminder: If your camera’s perspective is as off-target as a sleep-deprived archer, recalibrate discreetly.]\n\n"
+            "- Subtle Reminder: If your camera’s perspective is as off-target as a sleep-deprived archer, recalibrate discreetly.]\n"
+            "\n"
         )
     
         motion_instance = MotionController.get_instance()
