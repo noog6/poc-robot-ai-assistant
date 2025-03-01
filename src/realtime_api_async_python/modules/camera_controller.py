@@ -49,6 +49,9 @@ class CameraController:
         self.current_conversation_context = new_context
         #print(f"Conversation Context was updated:\n{self.current_conversation_context}\n\n")
 
+    def get_visual_context(self):
+        return self.current_conversation_context
+
     def start_vision_loop(self, vision_loop_frequency=15000):
         if self._vision_loop_thread is None or not self._vision_loop_thread.is_alive():
             self._stop_event.clear()
