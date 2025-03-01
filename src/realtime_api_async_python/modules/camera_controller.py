@@ -29,6 +29,7 @@ class CameraController:
             self.vision_loop_frequency = 0
             self.vision_loop_start_time = [0] * 100
             self.vision_loop_index = 0
+            self.last_image = None
             self.previous_visual_description = "Nothing"
             self.current_conversation_context = "There is a person in my general area"
             self.realtime_instance = None
@@ -107,6 +108,7 @@ class CameraController:
         new_image = self.take_image()
         buffered = BytesIO()
         new_image.save(buffered, format="JPEG")
+        self.last_image = new_image
         encoded_image = base64.b64encode(buffered.getvalue()).decode("utf-8")
         image_analysis_prompt = self.generate_vision_prompt(self.previous_visual_description, self.current_conversation_context)
         print(f"\nVision Analysis Prompt:\n\n{image_analysis_prompt}\n")
@@ -183,6 +185,39 @@ class CameraController:
         prompt += "Proceed with your updated situational analysis. Do not ask any follow up questions.\n"
 
         return prompt
+
+    def compare_images(self, img1, img2):
+        """Compare two images and return a similarity percentage (0 to 100)."""
+        # Load images if file paths are provided
+        if isinstance(img1, str):
+            img1 = Image.open(img1)
+        if isinstance(img2, str):
+            img2 = Image.open(img2)
+        # Convert images to the same mode (e.g., RGB) to handle differences in channels
+        img1 = img1.convert('RGB')
+        img2 = img2.convert('RGB')
+        # If sizes differ, optionally resize the second image to match the first
+        if img1.size != img2.size:
+            img2 = img2.resize(img1.size)
+        # Convert images to NumPy arrays for fast computation
+        arr1 = np.array(img1)
+        arr2 = np.array(img2)
+        # Ensure the arrays have the same shape (same width, height, channels)
+        if arr1.shape != arr2.shape:
+            raise ValueError("Images must have the same dimensions for comparison")
+        # Compute the Mean Squared Error (MSE) between the image arrays
+        diff = arr1.astype(np.float32) - arr2.astype(np.float32)
+        mse = np.mean(np.square(diff))
+        # Compute similarity percentage from MSE
+        if mse == 0:
+            similarity = 100.0  # images are identical
+        else:
+            max_mse = (255.0 ** 2)  # maximum MSE for 8-bit images
+            similarity = (1 - mse / max_mse) * 100
+            if similarity < 0:
+                similarity = 0.0   # clamp lower bound
+        return similarity
+
 
     def _vision_loop(self):
         next_vision_loop_time = millis() + self.vision_loop_frequency
