@@ -1,8 +1,12 @@
+import asyncio
 import numpy as np
 import pyaudio
 import queue
 import logging
 from .utils import FORMAT, CHANNELS, RATE, CHUNK
+
+AUDIO_THRESHOLD     = 40.0
+AUDIO_SILENCE_TOTAL = 10
 
 class AsyncMicrophone:
     def __init__(self):
@@ -14,23 +18,43 @@ class AsyncMicrophone:
         print("Completed device list")
 
         self.stream = self.p.open(
-            format=FORMAT,
-            channels=CHANNELS,
-            rate=RATE,
-            input=True,
-            frames_per_buffer=CHUNK,
-            stream_callback=self.callback,
+            format            = FORMAT,
+            channels          = CHANNELS,
+            rate              = RATE,
+            input             = True,
+            frames_per_buffer = CHUNK,
+            stream_callback   = self.callback,
         )
-        self.queue = queue.Queue()
-        self.is_recording = False
-        self.is_receiving = False
+        self.queue                   = queue.Queue()
+        self.is_recording            = False
+        self.is_receiving            = False
+        self.silence_count           = 0
+        self.speech_stopped_callback = None
+        self.websocket               = None
         logging.info("AsyncMicrophone initialized")
 
+    def set_speech_stopped_callback(self, callback_function=None, websocket=None, loop=None):
+        self.speech_stopped_callback = callback_function
+        self.websocket               = websocket
+        self.loop                    = loop
+
     def callback(self, in_data, frame_count, time_info, status):
+        audio_level = round( self.rms_numpy(in_data, 2), 2)
+        #print(f"[Audio Volume: {audio_level}] [Silence Count: {self.silence_count}]")
+        if not self.is_recording and not self.is_receiving and audio_level > AUDIO_THRESHOLD:
+            self.start_recording()
+
         if self.is_recording and not self.is_receiving:
-            audio_level = round( self.rms_numpy(in_data, 2), 2)
-            print(f"[Audio Volume: {audio_level}]")
             self.queue.put(in_data)
+            if audio_level >= AUDIO_THRESHOLD:
+                self.silence_count = 0
+            elif audio_level < AUDIO_THRESHOLD:
+                self.silence_count += 1
+                if self.silence_count > AUDIO_SILENCE_TOTAL:
+                    self.stop_recording()
+                    if self.speech_stopped_callback:
+                        self.loop.create_task(self.speech_stopped_callback(self.websocket))
+
         return (None, pyaudio.paContinue)
 
 
@@ -55,6 +79,7 @@ class AsyncMicrophone:
 
     def start_recording(self):
         self.is_recording = True
+        self.silence_count = 0
         logging.info("Started recording")
 
     def stop_recording(self):

@@ -69,23 +69,23 @@ def log_runtime(function_or_name: str, duration: float):
 
 class RealtimeAPI:
     def __init__(self, prompts=None):
-        self.prompts = prompts
-        self.api_key = os.getenv("OPENAI_API_KEY")
+        self.prompts              = prompts
+        self.api_key              = os.getenv("OPENAI_API_KEY")
         if not self.api_key:
             logger.error("Please set the OPENAI_API_KEY in your .env file.")
             sys.exit(1)
-        self.exit_event = asyncio.Event()
-        self.mic = AsyncMicrophone()
-        self.loop = None
+        self.exit_event           = asyncio.Event()
+        self.mic                  = AsyncMicrophone()
+        self.loop                 = None
 
         # Initialize state variables
-        self.assistant_reply = ""
-        self.audio_chunks = []
+        self.assistant_reply      = ""
+        self.audio_chunks         = []
         self.response_in_progress = False
-        self.function_call = None
-        self.function_call_args = ""
-        self.response_start_time = None
-        self.websocket = None
+        self.function_call        = None
+        self.function_call_args   = ""
+        self.response_start_time  = None
+        self.websocket            = None
 
     async def run(self):
         self.loop = asyncio.get_running_loop()
@@ -99,10 +99,10 @@ class RealtimeAPI:
 
                 async with websockets.connect(
                     url,
-                    additional_headers=headers,
-                    close_timeout=120,
-                    ping_interval=30,
-                    ping_timeout=10,
+                    additional_headers = headers,
+                    close_timeout      = 120,
+                    ping_interval      = 30,
+                    ping_timeout       = 10,
                 ) as websocket:
                     log_info("✅ Connected to the server.", style="bold green")
 
@@ -113,8 +113,12 @@ class RealtimeAPI:
                         "Conversation started. Speak freely, and the assistant will respond."
                     )
                     
-                    # I know this is bad, oh so bad, but...
+                    # I know this is bad, oh so bad, but... we need to store this websocket for 
+                    # requests that don't have the ability to pass it along
                     self.websocket = websocket
+
+                    # One more link to setup between the microphone and realtime model code
+                    self.mic.set_speech_stopped_callback(self.handle_speech_stopped, self.websocket, self.loop)
 
                     if self.prompts:
                         await self.send_initial_prompts(websocket)
@@ -160,12 +164,13 @@ class RealtimeAPI:
                 "voice": "echo",
                 "input_audio_format": "pcm16",
                 "output_audio_format": "pcm16",
-                "turn_detection": {
-                    "type": "server_vad",
-                    "threshold": SILENCE_THRESHOLD,
-                    "prefix_padding_ms": PREFIX_PADDING_MS,
-                    "silence_duration_ms": SILENCE_DURATION_MS,
-                },
+                "turn_detection": None,
+#                "turn_detection": {
+#                    "type": "server_vad",
+#                    "threshold": SILENCE_THRESHOLD,
+#                    "prefix_padding_ms": PREFIX_PADDING_MS,
+#                    "silence_duration_ms": SILENCE_DURATION_MS,
+#                },
                 "tools": tools,
             },
         }
@@ -207,8 +212,10 @@ class RealtimeAPI:
             await self.handle_error(event, websocket)
         elif event_type == "input_audio_buffer.speech_started":
             logger.info("Speech detected, listening...")
-        elif event_type == "input_audio_buffer.speech_stopped":
-            await self.handle_speech_stopped(websocket)
+#        elif event_type == "input_audio_buffer.speech_stopped":
+#            await self.handle_speech_stopped(websocket)
+        elif event_type == "input_audio_buffer.committed":
+            print("[[[Audio Buffer Committed Received]]]")
         elif event_type == "rate_limits.updated":
             self.response_in_progress = False
             self.mic.is_recording = True
@@ -294,8 +301,12 @@ class RealtimeAPI:
             logger.info(
                 f"Sending {len(audio_data)} bytes of audio data to play_audio()"
             )
+            self.mic.start_receiving()
             await play_audio(audio_data)
             logger.info("Finished play_audio()")
+            self.audio_chunks = []
+            logger.info("Calling stop_receiving()")
+            self.mic.stop_receiving()
 
         if self.assistant_reply != "":
             camera_instance = CameraController.get_instance()
@@ -303,10 +314,6 @@ class RealtimeAPI:
             print(f"New context was sent to vision controller:\n{self.assistant_reply}\n")
             self.assistant_reply = ""
         
-        self.audio_chunks = []
-        logger.info("Calling stop_receiving()")
-        self.mic.stop_receiving()
-
     async def handle_error(self, event, websocket):
         error_message = event.get("error", {}).get("message", "")
         log_error(f"Error: {error_message}")
@@ -323,6 +330,7 @@ class RealtimeAPI:
         logger.info("Speech ended, processing...")
         self.response_start_time = time.perf_counter()
         await websocket.send(json.dumps({"type": "input_audio_buffer.commit"}))
+        await websocket.send(json.dumps({"type": "response.create"}))
 
     async def send_initial_prompts(self, websocket):
         logger.info(f"Sending {len(self.prompts)} prompts: {self.prompts}")
