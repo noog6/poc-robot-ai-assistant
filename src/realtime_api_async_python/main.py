@@ -81,7 +81,6 @@ class RealtimeAPI:
         # Initialize state variables
         self.assistant_reply      = ""
         self.audio_chunks         = []
-        self.response_in_progress = False
         self.function_call        = None
         self.function_call_args   = ""
         self.response_start_time  = None
@@ -191,10 +190,7 @@ class RealtimeAPI:
 
     async def handle_event(self, event, websocket):
         event_type = event.get("type")
-        if event_type == "response.created":
-            self.mic.start_receiving()
-            self.response_in_progress = True
-        elif event_type == "response.output_item.added":
+        if event_type == "response.output_item.added":
             await self.handle_output_item_added(event)
         elif event_type == "response.function_call_arguments.delta":
             self.function_call_args += event.get("delta", "")
@@ -212,13 +208,9 @@ class RealtimeAPI:
             await self.handle_error(event, websocket)
         elif event_type == "input_audio_buffer.speech_started":
             logger.info("Speech detected, listening...")
-#        elif event_type == "input_audio_buffer.speech_stopped":
-#            await self.handle_speech_stopped(websocket)
         elif event_type == "input_audio_buffer.committed":
             print("[[[Audio Buffer Committed Received]]]")
         elif event_type == "rate_limits.updated":
-            self.response_in_progress = False
-            self.mic.is_recording = True
             logger.info("Resumed recording after rate_limits.updated")
 
     async def handle_output_item_added(self, event):
@@ -321,7 +313,6 @@ class RealtimeAPI:
             logger.info("Received 'buffer is empty' error, no audio data sent.")
         elif "Conversation already has an active response" in error_message:
             logger.info("Received 'active response' error, adjusting response flow.")
-            self.response_in_progress = True
         else:
             logger.error(f"Unhandled error: {error_message}")
 

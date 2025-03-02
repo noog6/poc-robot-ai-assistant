@@ -41,6 +41,7 @@ class AsyncMicrophone:
     def callback(self, in_data, frame_count, time_info, status):
         audio_level = round( self.rms_numpy(in_data, 2), 2)
         #print(f"[Audio Volume: {audio_level}] [Silence Count: {self.silence_count}]")
+        print(f"[Audio Volume: {audio_level}] [Silence Count: {self.silence_count}] [is_recording: {self.is_recording}] [is_receiving: {self.is_receiving}]")
         if not self.is_recording and not self.is_receiving and audio_level > AUDIO_THRESHOLD:
             self.start_recording()
 
@@ -50,13 +51,12 @@ class AsyncMicrophone:
                 self.silence_count = 0
             elif audio_level < AUDIO_THRESHOLD:
                 self.silence_count += 1
-                if self.silence_count > AUDIO_SILENCE_TOTAL:
+                if self.silence_count >= AUDIO_SILENCE_TOTAL:
                     self.stop_recording()
                     if self.speech_stopped_callback:
                         self.loop.create_task(self.speech_stopped_callback(self.websocket))
 
         return (None, pyaudio.paContinue)
-
 
     def rms_numpy(self, audio_bytes, sample_width=2):
         """
@@ -69,11 +69,21 @@ class AsyncMicrophone:
         Returns:
             float: RMS value of the audio signal.
         """
+        if not audio_bytes or len(audio_bytes) == 0:
+            return 0.0  # Return 0 RMS for empty input
+    
         dtype_map = {1: np.int8, 2: np.int16, 4: np.int32}
         dtype = dtype_map.get(sample_width, np.int16)  # Default to 16-bit
     
         audio_array = np.frombuffer(audio_bytes, dtype=dtype)
+    
+        if audio_array.size == 0:
+            return 0.0  # Return 0 if the array is empty
+    
         rms_value = np.sqrt(np.mean(audio_array**2))
+    
+        if np.isnan(rms_value) or np.isinf(rms_value):
+            return 0.0  # Catch and return safe value
     
         return rms_value
 
