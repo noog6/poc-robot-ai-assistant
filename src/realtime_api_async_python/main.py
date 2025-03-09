@@ -5,14 +5,25 @@ import websockets
 import base64
 import time
 import argparse
+import sys
 from datetime import datetime
 from dotenv import load_dotenv
 from websockets.exceptions import ConnectionClosedError
-from modules.logging import log_tool_call, log_error, log_info, log_warning
 
 # Import from modules
 from modules.async_microphone import AsyncMicrophone
+from modules.awareness_engine import AwarenessEngine
 from modules.audio import play_audio
+from modules.camera_controller import CameraController
+from modules.logging import (
+    logger,
+    log_ws_event,
+    log_tool_call,
+    log_error,
+    log_info,
+    log_warning
+)
+from modules.motion_controller import MotionController
 from modules.tools import (
     function_map,
     tools,
@@ -24,9 +35,6 @@ from modules.utils import (
     SILENCE_THRESHOLD,
     SILENCE_DURATION_MS,
 )
-from modules.logging import logger, log_ws_event
-from modules.camera_controller import CameraController
-import sys
 
 # Load environment variables
 load_dotenv()
@@ -403,13 +411,23 @@ def main():
     prompts = args.prompts.split("|") if args.prompts else None
     realtime_api_instance = RealtimeAPI(prompts)
     
-    print(f"Starting camera controller...")
+    # Start up servo controller sub-system
+    print("Starting motion controller subsystem...")
+    motion_controller = MotionController.get_instance()
+    motion_controller.start_control_loop(control_loop_frequency=20)
+
+    # Start up camera controller and start the video processing thread
+    print(f"Starting vision controller subsystem...")
     camera_instance = CameraController.get_instance()
-    print("Starting vision thread...")
     camera_instance.set_realtime_instance(realtime_api_instance)
-    print(f"Camera realtime instance set to: {camera_instance.realtime_instance}")
     camera_instance.start_vision_loop(vision_loop_frequency=5000)
     
+    # Start up context awareness engine subsystem
+    print("Starting awareness engine subsystem")
+    awareness_engine = AwarenessEngine.get_instance()
+    awareness_engine.start_control_loop(control_loop_frequency=1000)
+
+    # Now start runnint the higher level orchestration thread
     try:
         asyncio.run(realtime_api_instance.run())
     except KeyboardInterrupt:
