@@ -41,7 +41,7 @@ class AsyncMicrophone:
     def callback(self, in_data, frame_count, time_info, status):
         audio_level = round( self.rms_numpy(in_data, 2), 2)
         #print(f"[Audio Volume: {audio_level}] [Silence Count: {self.silence_count}]")
-        print(f"[Audio Volume: {audio_level}] [Silence Count: {self.silence_count}] [is_recording: {self.is_recording}] [is_receiving: {self.is_receiving}]")
+        #print(f"[Audio Volume: {audio_level}] [Silence Count: {self.silence_count}] [is_recording: {self.is_recording}] [is_receiving: {self.is_receiving}]")
         if not self.is_recording and not self.is_receiving and audio_level > AUDIO_THRESHOLD:
             self.start_recording()
 
