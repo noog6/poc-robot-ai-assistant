@@ -6,6 +6,7 @@ import base64
 import time
 import argparse
 import sys
+import signal
 from datetime import datetime
 from dotenv import load_dotenv
 from websockets.exceptions import ConnectionClosedError
@@ -126,6 +127,9 @@ class RealtimeAPI:
 
                     # One more link to setup between the microphone and realtime model code
                     self.mic.set_speech_stopped_callback(self.handle_speech_stopped, self.websocket, self.loop)
+
+                    # Register the shutdown handler for SIGTERM
+                    self.loop.add_signal_handler(signal.SIGTERM, self.shutdown_handler)
 
                     if self.prompts:
                         await self.send_initial_prompts(websocket)
@@ -400,6 +404,12 @@ class RealtimeAPI:
             self.mic.close()
             await websocket.close()
 
+    # Define the shutdown handler
+    def shutdown_handler(self):
+        logger.info("Received SIGTERM. Initiating graceful shutdown...")
+        for task in asyncio.all_tasks(self.loop):
+            task.cancel()
+
 def main():
     print(f"Starting realtime API...")
     logger.info(f"Starting realtime API...")
@@ -427,14 +437,17 @@ def main():
     awareness_engine = AwarenessEngine.get_instance()
     awareness_engine.start_control_loop(control_loop_frequency=1000)
 
-    # Now start runnint the higher level orchestration thread
+    # Now start running the higher level orchestration thread
     try:
         asyncio.run(realtime_api_instance.run())
     except KeyboardInterrupt:
         logger.info("Program terminated by user")
     except Exception as e:
         logger.exception(f"An unexpected error occurred: {e}")
-
+    finally:
+        motion_controller.stop_control_loop()
+        #camera_instance.stop_vision_loop()
+        #awareness_engine.stop_control_loop()
 
 if __name__ == "__main__":
     print("Press Ctrl+C to exit the program.")
