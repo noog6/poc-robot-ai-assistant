@@ -195,5 +195,5 @@ bup/
 active_memory.json
 
 log/save/
-
+log/*.log
 
