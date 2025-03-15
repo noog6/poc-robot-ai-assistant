@@ -437,7 +437,7 @@ def main():
     print("Starting awareness engine subsystem")
     awareness_engine = AwarenessEngine.get_instance()
     awareness_engine.set_realtime_instance(realtime_api_instance)
-    awareness_engine.start_control_loop(control_loop_frequency=3000)
+    awareness_engine.start_control_loop(control_loop_frequency=15000)
 
     # Now start running the higher level orchestration thread
     try:
