@@ -431,13 +431,13 @@ def main():
     # Start up camera controller and start the video processing thread
     print(f"Starting vision controller subsystem...")
     camera_instance = CameraController.get_instance()
-    camera_instance.set_realtime_instance(realtime_api_instance)
     #camera_instance.start_vision_loop(vision_loop_frequency=5000)
     
     # Start up context awareness engine subsystem
     print("Starting awareness engine subsystem")
     awareness_engine = AwarenessEngine.get_instance()
-    awareness_engine.start_control_loop(control_loop_frequency=1000)
+    awareness_engine.set_realtime_instance(realtime_api_instance)
+    awareness_engine.start_control_loop(control_loop_frequency=3000)
 
     # Now start running the higher level orchestration thread
     try:
