@@ -92,10 +92,11 @@ class AwarenessEngine():
                     
                     # Stage 1 - Consolidate Context
                     
-                    # Stage 2 - Update and manage awareness state
+                    # Stage 2 - Update awareness state...
                     self.sensor_data    = self.get_sensor_data()
-
                     self.visual_context = self.get_visual_context()
+                    
+                    # Stage 2.5 - ... and manage awareness state
 
                     # State 3 - Inject updated context back into Theo's higher level thinking
 
