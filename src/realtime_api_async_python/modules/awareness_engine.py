@@ -31,7 +31,7 @@ class AwarenessEngine():
             self.visual_context              = None
             self.conversation_context        = None
             self.vision_similarity_threshold = 95.0
-            self.vision_forced_update_time   = 10000
+            self.vision_forced_update_time   = 60000
             self.last_image                  = None
             self.last_image_timestamp        = None
             self.previous_prompt             = ""
@@ -169,7 +169,8 @@ class AwarenessEngine():
             new_image_similarity_percent = round(camera.compare_images(self.last_image, new_image), 3)
         print(f"[Image Similarity: {new_image_similarity_percent}]")
 
-        if (new_image_similarity_percent < self.vision_similarity_threshold) or ((self.last_image_timestamp + self.vision_forced_update_time) > millis()):
+        if (new_image_similarity_percent < self.vision_similarity_threshold) or \
+           ((self.last_image_timestamp + self.vision_forced_update_time) < millis()):
             self.last_image           = new_image
             self.last_image_timestamp = millis()
             buffered                  = BytesIO()
