@@ -127,13 +127,12 @@ class AwarenessEngine():
         
         return next_context
 
-    async def get_sensor_data(self):
+    def get_sensor_data(self):
         analog_sensor = ADS1015Sensor.get_instance()
         current_battery_voltage = analog_sensor.read_battery_voltage()
         latest_sensor_data = {
             "battery_level": current_battery_voltage,
         }
-
         return json.dumps(latest_sensor_data)
 
     def set_realtime_instance(self, realtime_instance):
