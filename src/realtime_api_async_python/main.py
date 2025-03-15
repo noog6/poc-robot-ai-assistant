@@ -313,9 +313,11 @@ class RealtimeAPI:
             self.mic.stop_receiving()
 
         if self.assistant_reply != "":
-            camera_instance = CameraController.get_instance()
-            camera_instance.update_conversation_context(self.assistant_reply)
-            print(f"New context was sent to vision controller:\n{self.assistant_reply}\n")
+            #camera_instance = CameraController.get_instance()
+            #camera_instance.update_conversation_context(self.assistant_reply)
+            #awareness_engine = AwarenessEngine.get_instance()
+            #awareness_engine.add_context(self.assistant_reply)
+            print(f"New context was not sent to vision controller:\n{self.assistant_reply}\n")
             self.assistant_reply = ""
         
     async def handle_error(self, event, websocket):
@@ -430,7 +432,7 @@ def main():
     print(f"Starting vision controller subsystem...")
     camera_instance = CameraController.get_instance()
     camera_instance.set_realtime_instance(realtime_api_instance)
-    camera_instance.start_vision_loop(vision_loop_frequency=5000)
+    #camera_instance.start_vision_loop(vision_loop_frequency=5000)
     
     # Start up context awareness engine subsystem
     print("Starting awareness engine subsystem")

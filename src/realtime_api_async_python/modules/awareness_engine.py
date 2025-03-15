@@ -1,8 +1,11 @@
+import asyncio
+import heapq
+import json
+import math
 import threading
 import time
 import traceback
-import heapq
-
+from .tools import read_battery_voltage
 
 def millis():
     return int(time.time() * 1000)
@@ -18,8 +21,9 @@ class AwarenessEngine():
             self.control_loop_function   = None
             self.control_loop_frequency  = 100
             self.control_loop_start_time = [0]*100
-            self.action_queue            = []
-            self.current_action          = None
+            self.context_queue           = []
+            self.alert_queue             = []
+            self.sensor_data             = None
         else:
             raise Exception("You cannot create another MotionController class")
 
@@ -72,6 +76,18 @@ class AwarenessEngine():
 
                 try:
                     print("Awareness Engine: Todo - become aware here...")
+                    
+                    # Stage 1 - Consolidate Context
+                    new_context = self.get_next_context()
+                    if new_context:
+                        print(f"Found new context: {new_context}")
+                    
+                    # Stage 2 - Update and manage awareness state
+                    self.sensor_data = self.get_sensor_data()
+
+                    # State 3 - Inject updated context back into Theo's higher level thinking
+
+                    # Stage 4 - Trigger any actions needed
 
                 except Exception as e:
                     print(f"[WARNING] Error in awareness loop (retrying): {e}", flush=True)
@@ -84,8 +100,22 @@ class AwarenessEngine():
             else:
                 time.sleep(0.001)
 
-
     def add_context(self, new_context):
-        heapq.heappush(self.action_queue, new_context)
+        heapq.heappush(self.context_queue, new_context)
 
+    def get_next_context(self):
+        next_context = None
+
+        if self.context_queue:
+            next_context = heapq.heappop(self.context_queue)
+        
+        return next_context
+
+    async def get_sensor_data(self):
+        current_battery_voltage = round(await read_battery_voltage(), 2)
+        latest_sensor_data = {
+            "battery_level": current_battery_voltage,
+        }
+
+        return json.dumps(latest_sensor_data)
 
