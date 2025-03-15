@@ -266,14 +266,8 @@ async def get_servo_position(servo_name: str):
 
 @timeit_decorator
 async def read_battery_voltage():
-    resistor_r1 = 9750
-    resistor_r2 = 6770
-
     analog_sensor   = ADS1015Sensor.get_instance()
-    data            = analog_sensor.single_read(3)
-    analog_reading  = (data * 2) / 1000
-    battery_voltage = round(analog_reading * ( (resistor_r1 + resistor_r2) / resistor_r2 ), 2)
-
+    battery_voltage = analog_sensor.read_battery_voltage()
     return {"current_battery_voltage": battery_voltage }
 
 

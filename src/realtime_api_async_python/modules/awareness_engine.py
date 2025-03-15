@@ -6,31 +6,37 @@ import math
 import threading
 import time
 import traceback
-from io import BytesIO
-from openai import OpenAI
+from io                 import BytesIO
+from openai             import OpenAI
+from .ads1015_sensor    import ADS1015Sensor
 from .camera_controller import CameraController
 from .motion_controller import MotionController, millis
-from .tools import function_map, servo_tools, set_all_servos, read_battery_voltage
+from .tools             import function_map, servo_tools, set_all_servos
 
 class AwarenessEngine():
     _instance = None
 
     def __init__(self):
         if self._instance is None:
-            self.client                  = OpenAI()
-            self.realtime_instance       = None
-            self._control_loop_thread    = None
-            self._stop_event             = threading.Event()
-            self.control_loop_index      = 0
-            self.control_loop_function   = None
-            self.control_loop_frequency  = 100
-            self.control_loop_start_time = [0]*100
-            self.context_queue           = []
-            self.sensor_data             = None
-            self.visual_context          = None
-            self.conversation_context    = None
+            self.client                      = OpenAI()
+            self.realtime_instance           = None
+            self._control_loop_thread        = None
+            self._stop_event                 = threading.Event()
+            self.control_loop_index          = 0
+            self.control_loop_function       = None
+            self.control_loop_frequency      = 100
+            self.control_loop_start_time     = [0]*100
+            self.context_queue               = []
+            self.sensor_data                 = None
+            self.visual_context              = None
+            self.conversation_context        = None
+            self.vision_similarity_threshold = 95.0
+            self.vision_forced_update_time   = 10000
+            self.last_image                  = None
+            self.last_image_timestamp        = None
+            self.previous_prompt             = ""
 
-            self._instance               = self
+            self._instance                   = self
         else:
             raise Exception("You cannot create another MotionController class")
 
@@ -87,7 +93,7 @@ class AwarenessEngine():
                     # Stage 1 - Consolidate Context
                     
                     # Stage 2 - Update and manage awareness state
-                    self.sensor_data = self.get_sensor_data()
+                    self.sensor_data    = self.get_sensor_data()
 
                     self.visual_context = self.get_visual_context()
 
@@ -122,7 +128,8 @@ class AwarenessEngine():
         return next_context
 
     async def get_sensor_data(self):
-        current_battery_voltage = round(await read_battery_voltage(), 2)
+        analog_sensor = ADS1015Sensor.get_instance()
+        current_battery_voltage = analog_sensor.read_battery_voltage()
         latest_sensor_data = {
             "battery_level": current_battery_voltage,
         }
@@ -143,9 +150,10 @@ class AwarenessEngine():
             print("Taking new image [o]")
             if self.realtime_instance:
                 vision_response = self.process_image()
-                visual_prompt = self.generate_vision_response_and_context_prompt(vision_response)
-                print(f"Visual Analysis Response:\n{visual_prompt}\n")
-                self.previous_prompt = visual_prompt
+                if vision_response:
+                    visual_prompt = self.generate_vision_response_and_context_prompt(vision_response)
+                    print(f"Visual Analysis Response:\n{visual_prompt}\n")
+                    self.previous_prompt = visual_prompt
                 print("Finished processing image")
             else:
                 print("Unable to take image - realtime instance not available")
@@ -154,60 +162,71 @@ class AwarenessEngine():
                     traceback.print_exc()
 
     def process_image(self):
-        camera                = CameraController.get_instance()
-        new_image             = camera.take_image()
-        buffered              = BytesIO()
-        new_image.save(buffered, format="JPEG")
-        self.last_image       = new_image
-        encoded_image         = base64.b64encode(buffered.getvalue()).decode("utf-8")
-        image_analysis_prompt = self.generate_vision_prompt(self.conversation_context)
-        print(f"\nVision Analysis Prompt:\n\n{image_analysis_prompt}\n")
-        response              = self.client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": image_analysis_prompt,
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": f"data:image/jpeg;base64,{encoded_image}"},
-                        },
-                    ],
-                }
-            ],
-            tools=servo_tools,
-        )
+        camera                       = CameraController.get_instance()
+        new_image                    = camera.take_image()
+        new_image_similarity_percent = 0.0
+        
+        if self.last_image:
+            new_image_similarity_percent = round(camera.compare_images(self.last_image, new_image), 3)
+        print(f"[Image Similarity: {new_image_similarity_percent}]")
 
-        self.previous_visual_description = response.choices[0].message.content
+        if (new_image_similarity_percent < self.vision_similarity_threshold) or ((self.last_image_timestamp + self.vision_forced_update_time) > millis()):
+            self.last_image           = new_image
+            self.last_image_timestamp = millis()
+            buffered                  = BytesIO()
+            new_image.save(buffered, format="JPEG")
+            encoded_image             = base64.b64encode(buffered.getvalue()).decode("utf-8")
+            image_analysis_prompt     = self.generate_vision_prompt(self.conversation_context)
+            print(f"\nVision Analysis Prompt:\n\n{image_analysis_prompt}\n")
+            response                  = self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": image_analysis_prompt,
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {"url": f"data:image/jpeg;base64,{encoded_image}"},
+                            },
+                        ],
+                    }
+                ],
+                tools=servo_tools,
+            )
 
-        tool_calls = response.choices[0].message.tool_calls
-        if tool_calls is None:
-            tool_calls = []
-        #print(f"Tool Calls Requested: \n{tool_calls}\n")
-        print("Visual Tool Calls: Starting\n")
+            self.previous_visual_description = response.choices[0].message.content
 
-        for tool_call in tool_calls:
-            #print(f"Found tool call from vision:\n{tool_call}\n")
-            function_name = tool_call.function.name
-            args          = json.loads(tool_call.function.arguments)
-            print(f"   {function_name}({args})\n")
+            tool_calls = response.choices[0].message.tool_calls
+            if tool_calls is None:
+                tool_calls = []
+            #print(f"Tool Calls Requested: \n{tool_calls}\n")
+            print("Visual Tool Calls: Starting\n")
 
-            if function_name in function_map:
-                try:
-                    result = function_map[function_name](**args)
-                except Exception as e:
-                    error_message = f"Error executing function '{function_name}': {str(e)}"
-                    print(error_message)
-            else:
-                print(f"Unknown Function: {function_name}")
+            for tool_call in tool_calls:
+                #print(f"Found tool call from vision:\n{tool_call}\n")
+                function_name = tool_call.function.name
+                args          = json.loads(tool_call.function.arguments)
+                print(f"   {function_name}({args})\n")
 
-        print("Visual Tool Calls: Finished\n")
+                if function_name in function_map:
+                    try:
+                        result = function_map[function_name](**args)
+                    except Exception as e:
+                        error_message = f"Error executing function '{function_name}': {str(e)}"
+                        print(error_message)
+                else:
+                    print(f"Unknown Function: {function_name}")
 
-        return response.choices[0].message.content
+            print("Visual Tool Calls: Finished\n")
+
+            return response.choices[0].message.content
+        else:
+            return None
+
 
     def generate_vision_prompt(self, conversation_context):
         prompt = (
