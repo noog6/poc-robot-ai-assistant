@@ -64,7 +64,7 @@ class CameraController:
             self._stop_event.set()
             self._vision_loop_thread.join()
             self._vision_loop_thread = None
-            print(f"Control loop stopped at index: {self.vision_loop_index}")
+            print(f"Vision control loop stopped at index: {self.vision_loop_index}")
             self.vision_loop_index = 0
 
     def generate_vision_prompt(self, previous_response, conversation_context):
