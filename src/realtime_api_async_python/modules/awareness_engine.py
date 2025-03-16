@@ -94,7 +94,7 @@ class AwarenessEngine():
                     
                     # Stage 2 - Update awareness state...
                     self.sensor_data    = self.get_sensor_data()
-                    self.visual_context = self.get_visual_context()
+                    #self.visual_context = self.get_visual_context()
                     
                     # Stage 2.5 - ... and manage awareness state
 
