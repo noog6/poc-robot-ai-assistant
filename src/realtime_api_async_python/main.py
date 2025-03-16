@@ -14,7 +14,7 @@ from websockets.exceptions import ConnectionClosedError
 # Import from modules
 from modules.async_microphone import AsyncMicrophone
 from modules.awareness_engine import AwarenessEngine
-from modules.audio import play_audio
+from modules.audio import AudioStreamer
 from modules.camera_controller import CameraController
 from modules.logging import (
     logger,
@@ -90,6 +90,7 @@ class RealtimeAPI:
         # Initialize state variables
         self.assistant_reply      = ""
         self.audio_chunks         = []
+        self.audio_streamer       = AudioStreamer()
         self.function_call        = None
         self.function_call_args   = ""
         self.response_start_time  = None
@@ -172,7 +173,7 @@ class RealtimeAPI:
             "session": {
                 "modalities": ["text", "audio"],
                 "instructions": SESSION_INSTRUCTIONS,
-                "voice": "echo",
+                "voice": "ash",
                 "input_audio_format": "pcm16",
                 "output_audio_format": "pcm16",
                 "turn_detection": None,
@@ -213,7 +214,14 @@ class RealtimeAPI:
             self.assistant_reply += delta
             print(f"Assistant: {delta}", end="", flush=True)
         elif event_type == "response.audio.delta":
-            self.audio_chunks.append(base64.b64decode(event["delta"]))
+            audio_chunk = base64.b64decode(event["delta"])
+            asyncio.create_task(self.audio_streamer.queue_audio_chunk(audio_chunk))
+
+            # Start playback if not already playing
+            if not self.audio_streamer.is_streaming():
+                self.mic.start_receiving()
+                asyncio.create_task(self.audio_streamer.play_audio_streaming())
+            
         elif event_type == "response.done":
             await self.handle_response_done()
         elif event_type == "error":
@@ -300,17 +308,17 @@ class RealtimeAPI:
             self.response_start_time = None
 
         log_info("Assistant response complete.", style="bold blue")
-        if self.audio_chunks:
-            audio_data = b"".join(self.audio_chunks)
-            logger.info(
-                f"Sending {len(audio_data)} bytes of audio data to play_audio()"
-            )
-            self.mic.start_receiving()
-            await play_audio(audio_data)
-            logger.info("Finished play_audio()")
-            self.audio_chunks = []
-            logger.info("Calling stop_receiving()")
-            self.mic.stop_receiving()
+        
+        # Ensure all queued audio chunks are fully played before stopping
+        while self.audio_streamer.is_streaming():
+            await asyncio.sleep(0.2)  # Small delay to allow the queue to drain
+    
+        log_info("🔇 Audio playback complete, stopping.")
+
+        #self.mic.start_receiving()
+        await self.audio_streamer.stop_audio()
+        logger.info("Calling stop_receiving()")
+        self.mic.stop_receiving()
 
         if self.assistant_reply != "":
             #camera_instance = CameraController.get_instance()
