@@ -55,7 +55,14 @@ class MotionController():
 
     def start_control_loop(self, control_loop_frequency=20):
         if self._control_loop_thread is None or not self._control_loop_thread.is_alive():
-            starting_frame = self.generate_base_keyframe(10, 20)
+            self.control_loop_frequency = control_loop_frequency
+            starting_frame = self.generate_base_keyframe(pan_degrees=0, tilt_degrees=-40)
+            starting_frame.name = "Starting Frame - 1"
+            while not self.move_to_keyframe(starting_frame):
+                time.sleep(0.002)
+            time.sleep(1.0)
+            starting_frame = self.generate_base_keyframe(pan_degrees=0, tilt_degrees=25)
+            starting_frame.name = "Starting Frame - 2"
             while not self.move_to_keyframe(starting_frame):
                 time.sleep(0.002)
             self._stop_event.clear()
@@ -69,7 +76,8 @@ class MotionController():
             self._stop_event.set()
             self._control_loop_thread.join()
             self._control_loop_thread = None
-            sit_frame = self.generate_base_frame()
+            sit_frame = self.generate_base_keyframe(pan_degrees=0, tilt_degrees=-40)
+            sit_frame.name = "Ending Frame - 1"
             sit_frame.final_target_time = millis() + 1000
             while not self.move_to_keyframe(sit_frame):
                 time.sleep(0.002)

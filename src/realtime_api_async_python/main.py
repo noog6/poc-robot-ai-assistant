@@ -422,7 +422,8 @@ def main():
         logger.info("Program terminated by user")
     except Exception as e:
         logger.exception(f"An unexpected error occurred: {e}")
-
+    finally:
+        motion_controller.stop_control_loop()
 
 if __name__ == "__main__":
     print("Press Ctrl+C to exit the program.")
