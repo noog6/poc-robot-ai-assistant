@@ -13,6 +13,7 @@ from modules.logging import log_tool_call, log_error, log_info, log_warning
 # Import from modules
 from modules.async_microphone import AsyncMicrophone
 from modules.audio import play_audio
+from modules.motion_controller import MotionController
 from modules.tools import (
     function_map,
     tools,
@@ -404,6 +405,10 @@ def main():
     prompts = args.prompts.split("|") if args.prompts else None
     realtime_api_instance = RealtimeAPI(prompts)
     
+    print("Starting motion controller...")
+    motion_controller = MotionController.get_instance()
+    motion_controller.start_control_loop()
+
     print(f"Starting camera controller...")
     camera_instance = CameraController.get_instance()
     print("Starting vision thread...")

@@ -11,7 +11,6 @@ from firecrawl import FirecrawlApp
 import tempfile
 import subprocess
 from .servo_registry    import ServoRegistry
-from .motion_controller import MotionController
 
 RUN_TIME_TABLE_LOG_JSON = "runtime_time_table.jsonl"
 
@@ -121,10 +120,6 @@ SESSION_INSTRUCTIONS = (
 PREFIX_PADDING_MS = 500
 SILENCE_THRESHOLD = 0.2
 SILENCE_DURATION_MS = 900
-
-# Start up servo controller sub-system
-motion_controller = MotionController.get_instance()
-motion_controller.start_control_loop()
 
 def match_pattern(pattern: str, key: str) -> bool:
     if pattern == "*":
