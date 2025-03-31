@@ -5,6 +5,7 @@ import websockets
 import base64
 import time
 import argparse
+import signal
 from datetime import datetime
 from dotenv import load_dotenv
 from websockets.exceptions import ConnectionClosedError
@@ -116,6 +117,9 @@ class RealtimeAPI:
                     
                     # I know this is bad, oh so bad, but...
                     self.websocket = websocket
+
+                    # Register the shutdown handler for SIGTERM
+                    self.loop.add_signal_handler(signal.SIGTERM, self.shutdown_handler)
 
                     if self.prompts:
                         await self.send_initial_prompts(websocket)
@@ -393,6 +397,12 @@ class RealtimeAPI:
             self.mic.stop_recording()
             self.mic.close()
             await websocket.close()
+
+    # Define the shutdown handler
+    def shutdown_handler(self):
+        logger.info("Received SIGTERM. Initiating graceful shutdown...")
+        for task in asyncio.all_tasks(self.loop):
+            task.cancel()
 
 def main():
     print(f"Starting realtime API...")
