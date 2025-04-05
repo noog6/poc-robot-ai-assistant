@@ -192,4 +192,6 @@ runtime_time_table.jsonl
 
 bup/
 
+log/*.log
+
 active_memory.json
