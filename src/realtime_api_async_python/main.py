@@ -14,6 +14,7 @@ from modules.logging import log_tool_call, log_error, log_info, log_warning
 # Import from modules
 from modules.async_microphone import AsyncMicrophone
 from modules.audio import play_audio
+from modules.awareness_engine import AwarenessEngine
 from modules.motion_controller import MotionController
 from modules.tools import (
     function_map,
@@ -423,9 +424,15 @@ def main():
     camera_instance = CameraController.get_instance()
     print("Starting vision thread...")
     camera_instance.set_realtime_instance(realtime_api_instance)
-    print(f"Camera realtime instance set to: {camera_instance.realtime_instance}")
-    camera_instance.start_vision_loop(vision_loop_frequency=5000)
+    #print(f"Camera realtime instance set to: {camera_instance.realtime_instance}")
+    #camera_instance.start_vision_loop(vision_loop_frequency=5000)
     
+    print("Starting Awareness Engine...")
+    awareness_engine = AwarenessEngine.get_instance()
+    print("Starting awareness thread...")
+    awareness_engine.set_realtime_instance(realtime_api_instance)
+    awareness_engine.start_control_loop(control_loop_frequency=15000)
+
     try:
         asyncio.run(realtime_api_instance.run())
     except KeyboardInterrupt:
