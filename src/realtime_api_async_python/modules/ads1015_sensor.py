@@ -116,6 +116,17 @@ class ADS1015Sensor():
         data=self._read_u16(ADS_POINTER_CONVERT)>>4
         return data
 
+    # Helper function since this is hard wired into the sensor board
+    def read_battery_voltage(self):
+        resistor_r1 = 9750
+        resistor_r2 = 6770
+
+        data            = self.single_read(3)
+        analog_reading  = (data * 2) / 1000
+        battery_voltage = round(analog_reading * ( (resistor_r1 + resistor_r2) / resistor_r2 ), 2)
+
+        return battery_voltage
+
 if __name__ == '__main__':
     print("\nADS1015 Test Program ...\r\n")
     ads1015=ADS1015Sensor()
