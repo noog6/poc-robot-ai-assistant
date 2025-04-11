@@ -94,7 +94,7 @@ class AwarenessEngine():
                     
                     # Stage 2 - Update awareness state...
                     self.sensor_data    = self.get_sensor_data()
-                    #self.visual_context = self.get_visual_context()
+                    self.visual_context = self.process_image()
                     
                     # Stage 2.5 - ... and manage awareness state
 
@@ -144,22 +144,6 @@ class AwarenessEngine():
             self.realtime_instance.send_text_message_to_conversation(new_context),
             self.realtime_instance.loop
         )
-
-    def get_visual_context(self):
-        try:
-            print("Taking new image [o]")
-            if self.realtime_instance:
-                vision_response = self.process_image()
-                if vision_response:
-                    visual_prompt = self.generate_vision_response_and_context_prompt(vision_response)
-                    print(f"Visual Analysis Response:\n{visual_prompt}\n")
-                    self.previous_prompt = visual_prompt
-                print("Finished processing image")
-            else:
-                print("Unable to take image - realtime instance not available")
-        except Exception as e:
-                    print(f"[WARNING] Error in awareness loop (retrying): {e}", flush=True)
-                    traceback.print_exc()
 
     def process_image(self):
         camera                       = CameraController.get_instance()
