@@ -91,14 +91,16 @@ class AwarenessEngine():
                     #print("Awareness Engine: Todo - become aware here...")
                     
                     # Stage 1 - Consolidate Context
-                    
-                    # Stage 2 - Update awareness state...
                     self.sensor_data    = self.get_sensor_data()
                     self.visual_context = self.process_image()
                     
+                    # Stage 2 - Update awareness state...
+                    self.current_context = self.generate_situational_update()
+
                     # Stage 2.5 - ... and manage awareness state
 
                     # State 3 - Inject updated context back into Theo's higher level thinking
+                    self.send_context_update_to_realtime_instance(self.current_context)
 
                     # Stage 4 - Trigger any actions needed
 
@@ -127,6 +129,20 @@ class AwarenessEngine():
             next_context = heapq.heappop(self.context_queue)
         
         return next_context
+
+    def generate_situational_update(self):
+        if not self.visual_context and not self.sensor_data:
+            return
+    
+        situational_summary = "Awareness Snapshot:\n"
+    
+        if self.visual_context:
+            situational_summary += f"[Visual]: {self.visual_context}\n"
+        if self.sensor_data:
+            sensor_json = json.loads(self.sensor_data)
+            situational_summary += f"[Battery]: {sensor_json.get('battery_level', 'N/A')} V\n"
+    
+        return situational_summary
 
     def get_sensor_data(self):
         analog_sensor = ADS1015Sensor.get_instance()
