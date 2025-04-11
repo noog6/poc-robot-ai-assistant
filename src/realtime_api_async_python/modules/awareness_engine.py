@@ -98,6 +98,7 @@ class AwarenessEngine():
                     self.current_context = self.generate_situational_update()
 
                     # Stage 2.5 - ... and manage awareness state
+                    self.update_internal_model()
 
                     # State 3 - Inject updated context back into Theo's higher level thinking
                     self.send_context_update_to_realtime_instance(self.current_context)
@@ -143,6 +144,9 @@ class AwarenessEngine():
             situational_summary += f"[Battery]: {sensor_json.get('battery_level', 'N/A')} V\n"
     
         return situational_summary
+
+    def update_internal_model(self):
+        print(">>>>> [Update internal model here!] <<<<<")
 
     def get_sensor_data(self):
         analog_sensor = ADS1015Sensor.get_instance()
