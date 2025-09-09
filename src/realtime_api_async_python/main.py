@@ -94,10 +94,9 @@ class RealtimeAPI:
         self.loop = asyncio.get_running_loop()
         while True:
             try:
-                url = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17"
+                url = "wss://api.openai.com/v1/realtime?model=gpt-realtime"
                 headers = {
-                    "Authorization": f"Bearer {self.api_key}",
-                    "OpenAI-Beta": "realtime=v1",
+                    "Authorization": f"Bearer {self.api_key}"
                 }
 
                 async with websockets.connect(
@@ -161,17 +160,11 @@ class RealtimeAPI:
         session_update = {
             "type": "session.update",
             "session": {
-                "modalities": ["text", "audio"],
-                "instructions": SESSION_INSTRUCTIONS,
+                "type": "realtime",
+                "model": "gpt-realtime",
+                "output_modalities": ["audio"],
                 "voice": "ballad",
-                "input_audio_format": "pcm16",
-                "output_audio_format": "pcm16",
-                "turn_detection": {
-                    "type": "server_vad",
-                    "threshold": SILENCE_THRESHOLD,
-                    "prefix_padding_ms": PREFIX_PADDING_MS,
-                    "silence_duration_ms": SILENCE_DURATION_MS,
-                },
+                "instructions": SESSION_INSTRUCTIONS,
                 "tools": tools,
             },
         }
@@ -205,8 +198,12 @@ class RealtimeAPI:
             delta = event.get("delta", "")
             self.assistant_reply += delta
             print(f"Assistant: {delta}", end="", flush=True)
-        elif event_type == "response.audio.delta":
+        elif event_type == "response.output_audio.delta":
             self.audio_chunks.append(base64.b64decode(event["delta"]))
+            print(f"Audio chunks stored: {len(self.audio_chunks)}")
+        elif event_type == "response.output_audio_transcript.delta":
+            delta = event.get("delta", "")
+            print(f"Transcript: {delta}")
         elif event_type == "response.done":
             await self.handle_response_done()
         elif event_type == "error":
@@ -219,6 +216,9 @@ class RealtimeAPI:
             self.response_in_progress = False
             self.mic.is_recording = True
             logger.info("Resumed recording after rate_limits.updated")
+        elif event_type == "session.updated":
+            print("Session.updated received:")
+            print(event)
 
     async def handle_output_item_added(self, event):
         item = event.get("item", {})
@@ -303,13 +303,15 @@ class RealtimeAPI:
             await play_audio(audio_data)
             logger.info("Finished play_audio()")
 
+        self.audio_chunks = []
+        print(f"Audio chunks stored: {len(self.audio_chunks)}")
+        
         if self.assistant_reply != "":
             camera_instance = CameraController.get_instance()
             camera_instance.update_conversation_context(self.assistant_reply)
             print(f"New context was sent to vision controller:\n{self.assistant_reply}\n")
             self.assistant_reply = ""
         
-        self.audio_chunks = []
         logger.info("Calling stop_receiving()")
         self.mic.stop_receiving()
 
@@ -361,7 +363,7 @@ class RealtimeAPI:
                 "metadata": { "topic": "sending data" },
 
                 # We only want a text response to these out-of-band messages
-                "modalities": [ "text" ],
+                # "modalities": [ "text" ], --> Taking this out as it was removed at some point?
                 
                 # The body of our message
                 "instructions": text_message,
@@ -421,7 +423,7 @@ def main():
     motion_controller.start_control_loop()
 
     print(f"Starting camera controller...")
-    camera_instance = CameraController.get_instance()
+    #camera_instance = CameraController.get_instance()
     #print("Starting vision thread...")
     #camera_instance.set_realtime_instance(realtime_api_instance)
     #print(f"Camera realtime instance set to: {camera_instance.realtime_instance}")
@@ -430,7 +432,7 @@ def main():
     print("Starting Awareness Engine...")
     awareness_engine = AwarenessEngine.get_instance()
     awareness_engine.set_realtime_instance(realtime_api_instance)
-    awareness_engine.start_control_loop(control_loop_frequency=15000)
+    #awareness_engine.start_control_loop(control_loop_frequency=15000)
 
     try:
         asyncio.run(realtime_api_instance.run())
