@@ -163,7 +163,11 @@ class RealtimeAPI:
                 "type": "realtime",
                 "model": "gpt-realtime",
                 "output_modalities": ["audio"],
-                "voice": "ballad",
+                "audio": {
+                    "output": {
+                        "voice": "ballad",
+                    },
+                },
                 "instructions": SESSION_INSTRUCTIONS,
                 "tools": tools,
             },
@@ -200,7 +204,7 @@ class RealtimeAPI:
             print(f"Assistant: {delta}", end="", flush=True)
         elif event_type == "response.output_audio.delta":
             self.audio_chunks.append(base64.b64decode(event["delta"]))
-            print(f"Audio chunks stored: {len(self.audio_chunks)}")
+            print(f"Output Audio chunks stored: {len(self.audio_chunks)}")
         elif event_type == "response.output_audio_transcript.delta":
             delta = event.get("delta", "")
             print(f"Transcript: {delta}")
@@ -304,7 +308,7 @@ class RealtimeAPI:
             logger.info("Finished play_audio()")
 
         self.audio_chunks = []
-        print(f"Audio chunks stored: {len(self.audio_chunks)}")
+        #print(f"Audio chunks stored: {len(self.audio_chunks)}")
         
         if self.assistant_reply != "":
             camera_instance = CameraController.get_instance()
@@ -381,6 +385,7 @@ class RealtimeAPI:
                 if not self.mic.is_receiving:
                     audio_data = self.mic.get_audio_data()
                     if audio_data and len(audio_data) > 0:
+                        print(f"Input Audio Data to send: {len(audio_data)}")
                         base64_audio = base64_encode_audio(audio_data)
                         if base64_audio:
                             audio_event = {
