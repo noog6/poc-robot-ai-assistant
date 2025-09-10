@@ -28,8 +28,8 @@ class AsyncMicrophone:
 
     def callback(self, in_data, frame_count, time_info, status):
         if self.is_recording and not self.is_receiving:
-            audio_level = round( self.rms_numpy(in_data, 2), 2)
-            print(f"[Audio Volume: {audio_level}]")
+            #audio_level = round( self.rms_numpy(in_data, 2), 2)
+            #print(f"[Audio Volume: {audio_level}]")
             self.queue.put(in_data)
         return (None, pyaudio.paContinue)
 
