@@ -221,7 +221,7 @@ async def get_random_number():
 
 
 @timeit_decorator
-def set_pan(degrees: float):
+async def set_pan(degrees: float):
     motion_controller = MotionController.get_instance()
     current_tilt_degrees = motion_controller.servo_registry.servos['tilt'].read_value()
     #print(f"control loop index: {motion_controller.control_loop_index} ~ control loop alive: {motion_controller.is_control_loop_alive()}")
@@ -234,7 +234,7 @@ def set_pan(degrees: float):
 
 
 @timeit_decorator
-def set_tilt(degrees: float):
+async def set_tilt(degrees: float):
     motion_controller = MotionController.get_instance()
     current_pan_degrees = motion_controller.servo_registry.servos['pan'].read_value()
     #print(f"control loop index: {motion_controller.control_loop_index} ~ control loop alive: {motion_controller.is_control_loop_alive()}")
@@ -247,7 +247,7 @@ def set_tilt(degrees: float):
 
 
 @timeit_decorator
-def set_all_servos(new_tilt_degrees: float, new_pan_degrees: float):
+async def set_all_servos(new_tilt_degrees: float, new_pan_degrees: float):
     motion_controller = MotionController.get_instance()
     base_frame = motion_controller.generate_base_keyframe(tilt_degrees=new_tilt_degrees, pan_degrees=new_pan_degrees)
     base_frame.final_target_time = 500
