@@ -164,6 +164,16 @@ class RealtimeAPI:
                 "model": "gpt-realtime",
                 "output_modalities": ["audio"],
                 "audio": {
+                    "input": {
+                        "turn_detection": {
+                            "type": "server_vad",
+                            "threshold": SILENCE_THRESHOLD,
+                            "prefix_padding_ms": PREFIX_PADDING_MS,
+                            "silence_duration_ms": SILENCE_DURATION_MS,
+                            "create_response": True, 
+                            "interrupt_response": True,
+                        },
+                    },
                     "output": {
                         "voice": "ballad",
                     },
@@ -285,7 +295,7 @@ class RealtimeAPI:
             "item": {
                 "type": "message",
                 "role": "assistant",
-                "content": [{"type": "text", "text": error_message}],
+                "content": [{"type": "output_text", "text": error_message}],
             },
         }
         log_ws_event("Outgoing", error_item)
