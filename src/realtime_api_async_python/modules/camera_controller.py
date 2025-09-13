@@ -172,10 +172,9 @@ class CameraController:
         # Optionally, perform transformations:
         # Rotate by 270 degrees (90 CW) and flip horizontally.
         rotated_image = np.rot90(frame, k=3)
-        flipped_image = np.fliplr(rotated_image)
         
         # Convert NumPy array to a PIL Image
-        final_image = Image.fromarray(flipped_image)
+        final_image = Image.fromarray(rotated_image)
         return final_image
 
     def generate_vision_response_and_context_prompt(self, vision_response):
@@ -234,12 +233,9 @@ class CameraController:
                 try:
                     print("Taking new image [o]")
                     if self.realtime_instance:
-                        vision_response = self.process_image()
-                        visual_prompt = self.generate_vision_response_and_context_prompt(vision_response)
-                        print(f"Visual Analysis Response:\n{visual_prompt}\n")
-                        self.previous_prompt = visual_prompt
+                        new_image = self.take_image()
                         asyncio.run_coroutine_threadsafe(
-                            self.realtime_instance.send_text_message_to_conversation(visual_prompt),
+                            self.realtime_instance.send_image_to_assistant(new_image),
                             self.realtime_instance.loop
                         )
                         print("Finished processing image")

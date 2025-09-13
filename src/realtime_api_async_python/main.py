@@ -8,6 +8,7 @@ import argparse
 import signal
 from datetime import datetime
 from dotenv import load_dotenv
+from io import BytesIO
 from websockets.exceptions import ConnectionClosedError
 from modules.logging import log_tool_call, log_error, log_info, log_warning
 
@@ -289,6 +290,22 @@ class RealtimeAPI:
         self.function_call = None
         self.function_call_args = ""
 
+    async def send_image_to_assistant(self, new_image):
+        bytes_buffer = BytesIO()
+        new_image.save(bytes_buffer, format="JPEG")
+        encoded_image = base64.b64encode(bytes_buffer.getvalue()).decode("utf-8")
+        image_item = {
+            "type": "conversation.item.create",
+            "item": {
+                "type": "message",
+                "role": "user",
+                "content": [{"type":       "input_image", 
+                             "image_url": f"data:image/jpeg;base64,{encoded_image}"}],
+            },
+        }
+        log_ws_event("Image", image_item)
+        await self.websocket.send(json.dumps(image_item))
+
     async def send_error_message_to_assistant(self, error_message, websocket):
         error_item = {
             "type": "conversation.item.create",
@@ -395,14 +412,14 @@ class RealtimeAPI:
                 if not self.mic.is_receiving:
                     audio_data = self.mic.get_audio_data()
                     if audio_data and len(audio_data) > 0:
-                        print(f"Input Audio Data to send: {len(audio_data)}")
+                        # print(f"Input Audio Data to send: {len(audio_data)}")
                         base64_audio = base64_encode_audio(audio_data)
                         if base64_audio:
                             audio_event = {
                                 "type": "input_audio_buffer.append",
                                 "audio": base64_audio,
                             }
-                            log_ws_event("Outgoing", audio_event)
+                            # log_ws_event("Outgoing", audio_event)
                             await websocket.send(json.dumps(audio_event))
                         else:
                             logger.debug("No audio data to send")
@@ -438,11 +455,10 @@ def main():
     motion_controller.start_control_loop()
 
     print(f"Starting camera controller...")
-    #camera_instance = CameraController.get_instance()
-    #print("Starting vision thread...")
-    #camera_instance.set_realtime_instance(realtime_api_instance)
-    #print(f"Camera realtime instance set to: {camera_instance.realtime_instance}")
-    #camera_instance.start_vision_loop(vision_loop_frequency=5000)
+    camera_instance = CameraController.get_instance()
+    print("Starting vision thread...")
+    camera_instance.set_realtime_instance(realtime_api_instance)
+    camera_instance.start_vision_loop(vision_loop_frequency=5000)
     
     print("Starting Awareness Engine...")
     awareness_engine = AwarenessEngine.get_instance()
