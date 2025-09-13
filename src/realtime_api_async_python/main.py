@@ -14,7 +14,7 @@ from modules.logging import log_tool_call, log_error, log_info, log_warning
 
 # Import from modules
 from modules.async_microphone import AsyncMicrophone
-from modules.audio import play_audio
+from modules.audio import AudioPlayer
 from modules.awareness_engine import AwarenessEngine
 from modules.motion_controller import MotionController
 from modules.tools import (
@@ -80,6 +80,7 @@ class RealtimeAPI:
             sys.exit(1)
         self.exit_event = asyncio.Event()
         self.mic = AsyncMicrophone()
+        self.audio_player = AudioPlayer()
         self.loop = None
 
         # Initialize state variables
@@ -331,7 +332,7 @@ class RealtimeAPI:
             logger.info(
                 f"Sending {len(audio_data)} bytes of audio data to play_audio()"
             )
-            await play_audio(audio_data)
+            await self.audio_player.play_audio(audio_data)
             logger.info("Finished play_audio()")
 
         self.audio_chunks = []
