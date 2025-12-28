@@ -96,8 +96,8 @@ with open(personalization_file, "r") as f:
     personalization = json.load(f)
 
 SESSION_INSTRUCTIONS = (
-    f"You are called {personalization.get('ai_assistant_name', 'Assistant')}"
-    f"Your human partner is called {personalization.get('human_name', 'User')}"
+    f"You are called {personalization.get('ai_assistant_name', 'Assistant')}. "
+    f"Your human partner is called {personalization.get('human_name', 'User')}. "
     f"{personalization.get('personality_core', '')}"
     f"{personalization.get('physical_body', '')}"
 )
