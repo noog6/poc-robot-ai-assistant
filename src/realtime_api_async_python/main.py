@@ -224,6 +224,7 @@ class RealtimeAPI:
         elif event_type == "response.output_audio_transcript.delta":
             delta = event.get("delta", "")
             print(f"Transcript: {delta}")
+            self.assistant_reply += delta
         elif event_type == "response.output_audio_transcript.done":
             await self.handle_transcribe_response_done()
         elif event_type == "error":
@@ -324,6 +325,13 @@ class RealtimeAPI:
         await websocket.send(json.dumps(error_item))
 
     async def handle_transcribe_response_done(self):
+        if self.assistant_reply != "":
+            log_info(f"Assistant Response: {self.assistant_reply}", style="bold green")
+            camera_instance = CameraController.get_instance()
+            camera_instance.update_conversation_context(self.assistant_reply)
+            print(f"New context was sent to vision controller:\n{self.assistant_reply}\n")
+            self.assistant_reply = ""
+        
         logger.info("Finished handle_transcribe_respose_done()")
 
     async def handle_audio_response_done(self):
@@ -336,21 +344,21 @@ class RealtimeAPI:
         log_info("Assistant audio response complete.", style="bold blue")
         if self.audio_chunks:
             audio_data = b"".join(self.audio_chunks)
+            self.audio_chunks = []
             logger.info(
                 f"Sending {len(audio_data)} bytes of audio data to play_audio()"
             )
+            # Old way of calling
             await self.audio_player.play_audio(audio_data)
+            
+            # Non-blocking
+            #asyncio.create_task(self.audio_player.play_audio(audio_data))
+
+            # Blocking
+            #await asyncio.to_thread(self.audio_player.play_audio, audio_data)
+
             logger.info("Finished play_audio()")
 
-        self.audio_chunks = []
-        #print(f"Audio chunks stored: {len(self.audio_chunks)}")
-        
-        if self.assistant_reply != "":
-            camera_instance = CameraController.get_instance()
-            camera_instance.update_conversation_context(self.assistant_reply)
-            print(f"New context was sent to vision controller:\n{self.assistant_reply}\n")
-            self.assistant_reply = ""
-        
         logger.info("Calling stop_receiving()")
         self.mic.stop_receiving()
 
