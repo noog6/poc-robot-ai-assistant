@@ -182,8 +182,6 @@ __pycache__/
 
 .venv/
 
-apps/marimo-prompt-library/prompt_executions
-
 .env
 
 scratchpad/
@@ -192,6 +190,6 @@ runtime_time_table.jsonl
 
 bup/
 
-log/*.log
+log/
 
 active_memory.json
