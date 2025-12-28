@@ -213,17 +213,17 @@ class RealtimeAPI:
         elif event_type == "response.text.delta":
             delta = event.get("delta", "")
             self.assistant_reply += delta
-            print(f"Assistant: {delta}", end="", flush=True)
+            #print(f"Assistant: {delta}", end="", flush=True)
         elif event_type == "response.output_audio.delta":
             audio_data = base64.b64decode(event["delta"])
-            print(f"Output Audio chunks stored: {len(audio_data)}")
+            #print(f"Output Audio chunks stored: {len(audio_data)}")
             self.audio_chunks.append(audio_data)
             #await self.audio_player.play_audio(base64.b64decode(event["delta"]))
         elif event_type == "response.output_audio.done":
             await self.handle_audio_response_done()
         elif event_type == "response.output_audio_transcript.delta":
             delta = event.get("delta", "")
-            print(f"Transcript: {delta}")
+            #print(f"Transcript: {delta}")
             self.assistant_reply += delta
         elif event_type == "response.output_audio_transcript.done":
             await self.handle_transcribe_response_done()
@@ -326,7 +326,7 @@ class RealtimeAPI:
 
     async def handle_transcribe_response_done(self):
         if self.assistant_reply != "":
-            log_info(f"Assistant Response: {self.assistant_reply}", style="bold green")
+            log_info(f"Assistant Response: {self.assistant_reply}", style="bold blue")
             camera_instance = CameraController.get_instance()
             camera_instance.update_conversation_context(self.assistant_reply)
             print(f"New context was sent to vision controller:\n{self.assistant_reply}\n")
