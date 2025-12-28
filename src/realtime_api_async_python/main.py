@@ -215,13 +215,17 @@ class RealtimeAPI:
             self.assistant_reply += delta
             print(f"Assistant: {delta}", end="", flush=True)
         elif event_type == "response.output_audio.delta":
-            self.audio_chunks.append(base64.b64decode(event["delta"]))
-            print(f"Output Audio chunks stored: {len(self.audio_chunks)}")
+            audio_data = base64.b64decode(event["delta"])
+            print(f"Output Audio chunks stored: {len(audio_data)}")
+            self.audio_chunks.append(audio_data)
+            #await self.audio_player.play_audio(base64.b64decode(event["delta"]))
+        elif event_type == "response.output_audio.done":
+            await self.handle_audio_response_done()
         elif event_type == "response.output_audio_transcript.delta":
             delta = event.get("delta", "")
             print(f"Transcript: {delta}")
-        elif event_type == "response.done":
-            await self.handle_response_done()
+        elif event_type == "response.output_audio_transcript.done":
+            await self.handle_transcribe_response_done()
         elif event_type == "error":
             await self.handle_error(event, websocket)
         elif event_type == "input_audio_buffer.speech_started":
@@ -319,14 +323,17 @@ class RealtimeAPI:
         log_ws_event("Outgoing", error_item)
         await websocket.send(json.dumps(error_item))
 
-    async def handle_response_done(self):
+    async def handle_transcribe_response_done(self):
+        logger.info("Finished handle_transcribe_respose_done()")
+
+    async def handle_audio_response_done(self):
         if self.response_start_time is not None:
             response_end_time = time.perf_counter()
             response_duration = response_end_time - self.response_start_time
             log_runtime("realtime_api_response", response_duration)
             self.response_start_time = None
 
-        log_info("Assistant response complete.", style="bold blue")
+        log_info("Assistant audio response complete.", style="bold blue")
         if self.audio_chunks:
             audio_data = b"".join(self.audio_chunks)
             logger.info(
