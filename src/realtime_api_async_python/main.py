@@ -369,7 +369,7 @@ class RealtimeAPI:
         self.mic.stop_recording()
         logger.info("Speech ended, processing...")
         self.response_start_time = time.perf_counter()
-        await websocket.send(json.dumps({"type": "input_audio_buffer.commit"}))
+        #await websocket.send(json.dumps({"type": "input_audio_buffer.commit"}))
 
     async def send_initial_prompts(self, websocket):
         logger.info(f"Sending {len(self.prompts)} prompts: {self.prompts}")
