@@ -190,6 +190,7 @@ runtime_time_table.jsonl
 
 bup/
 
-log/
+log/*
+!log/.gitkeep
 
 active_memory.json
