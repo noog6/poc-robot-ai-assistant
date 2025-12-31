@@ -297,20 +297,23 @@ class RealtimeAPI:
         self.function_call_args = ""
 
     async def send_image_to_assistant(self, new_image):
-        bytes_buffer = BytesIO()
-        new_image.save(bytes_buffer, format="JPEG", quality=55, optimize=True)
-        encoded_image = base64.b64encode(bytes_buffer.getvalue()).decode("utf-8")
-        image_item = {
-            "type": "conversation.item.create",
-            "item": {
-                "type": "message",
-                "role": "user",
-                "content": [{"type":       "input_image", 
-                             "image_url": f"data:image/jpeg;base64,{encoded_image}"}],
-            },
-        }
-        log_ws_event("Image", image_item)
-        await self.websocket.send(json.dumps(image_item))
+        if self.websocket:
+            bytes_buffer = BytesIO()
+            new_image.save(bytes_buffer, format="JPEG", quality=55, optimize=True)
+            encoded_image = base64.b64encode(bytes_buffer.getvalue()).decode("utf-8")
+            image_item = {
+                "type": "conversation.item.create",
+                "item": {
+                    "type": "message",
+                    "role": "user",
+                    "content": [{"type":       "input_image", 
+                                 "image_url": f"data:image/jpeg;base64,{encoded_image}"}],
+                },
+            }
+            log_ws_event("Image", image_item)
+            await self.websocket.send(json.dumps(image_item))
+        else:
+            log_warning("Unable to send image to assistant, websocket not available")
 
     async def send_error_message_to_assistant(self, error_message, websocket):
         error_item = {
@@ -474,7 +477,7 @@ def main():
     camera_instance = CameraController.get_instance()
     print("Starting vision thread...")
     camera_instance.set_realtime_instance(realtime_api_instance)
-    camera_instance.start_vision_loop(vision_loop_frequency=5000)
+    camera_instance.start_vision_loop(vision_loop_frequency=1000)
     
     print("Starting Awareness Engine...")
     awareness_engine = AwarenessEngine.get_instance()
