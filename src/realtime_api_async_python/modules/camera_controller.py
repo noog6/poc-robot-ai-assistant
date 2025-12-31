@@ -19,7 +19,15 @@ class CameraController:
         if not CameraController._instance:
             # Initialize Picamera2 and configure for still capture
             self.picam2 = Picamera2()
-            self.camera_configuration = self.picam2.create_still_configuration()
+            self._main_size = (640, 480)
+            self._lores_size = (160, 90)
+            self._last_luma = None
+            # Full sensor resolution ??? (2592×1944)
+            self.camera_configuration = self.picam2.create_preview_configuration(
+                main={"size": self._main_size, "format": "RGB888"},
+                lores={"size": self._lores_size, "format": "YUV420"},
+                buffer_count=2,
+            )
             self.picam2.configure(self.camera_configuration)
             self.picam2.start()
 
@@ -68,6 +76,7 @@ class CameraController:
             print(f"Control loop stopped at index: {self.vision_loop_index}")
             self.vision_loop_index = 0
 
+    # Old function?
     def generate_vision_prompt(self, previous_response, conversation_context):
         prompt = (
             "You are an AI robotic assistant with dual responsibilities: visual analysis and discreet actuation control.\n"
@@ -111,6 +120,7 @@ class CameraController:
 
         return prompt
 
+    # Old function?
     def process_image(self):
         new_image = self.take_image()
         buffered = BytesIO()
@@ -178,6 +188,25 @@ class CameraController:
         final_image = Image.fromarray(rotated_image)
         return final_image
 
+    def take_lores_luma(self) -> np.ndarray:
+        """
+        Returns a small uint8 grayscale (luma) frame for cheap change detection.
+        For YUV420, the Y plane is the top H rows.
+        """
+        yuv = self.picam2.capture_array("lores")  # usually shape like (H*3/2, W) or similar
+        h = self._lores_size[1]
+        # Y plane is the first H rows; keep as uint8
+        y = yuv[:h, :]
+        return y.copy()  # IMPORTANT: avoid buffer reuse issues
+    
+    def take_main_pil(self) -> Image.Image:
+        """
+        Returns a PIL image suitable for your existing send_image_to_assistant().
+        """
+        frame = self.picam2.capture_array("main")  # shape (H, W, 3) RGB888
+        return Image.fromarray(frame, mode="RGB")
+
+    # Old function?
     def generate_vision_response_and_context_prompt(self, vision_response):
         prompt  = "Visual Memory & Situational Context Update:\n"
         prompt += "Integrate the following scene description into your working memory as the latest visual snapshot. Then, based on this visual input and the ongoing conversation, provide a situational context update that encapsulates the current state and hints at potential next steps. Avoid mentioning internal processes or technical adjustments.\n\n"
@@ -243,11 +272,17 @@ class CameraController:
                     continue
 
                 try:
-                    print("Taking new image [o]")
+                    luma = self.take_lores_luma()
+                    changed, score = self.lores_changed(luma, threshold=7.0)
+                    if not changed:
+                        continue
+
+                    print(f"[VISION] change detected (mad={score:.2f})")
+
                     if self.realtime_instance:
                         self._send_in_flight.set()
                         
-                        new_image = self.take_image()
+                        new_image = self.take_main_pil()
                         
                         future = asyncio.run_coroutine_threadsafe(
                             self.realtime_instance.send_image_to_assistant(new_image),
@@ -288,4 +323,18 @@ class CameraController:
         finally:
             print("[INFO] Clearing _send_in_flight flag")
             self._send_in_flight.clear()
-                        
+
+    def lores_changed(self, luma: np.ndarray, threshold: float = 7.0) -> tuple[bool, float]:
+        """
+        Mean absolute difference on tiny grayscale.
+        Returns (changed, score).
+        """
+        if self._last_luma is None:
+            self._last_luma = luma
+            return True, 999.0
+    
+        d = luma.astype(np.int16) - self._last_luma.astype(np.int16)
+        mad = float(np.abs(d).mean())
+        self._last_luma = luma
+        return (mad >= threshold), mad
+
