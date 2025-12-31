@@ -298,7 +298,7 @@ class RealtimeAPI:
 
     async def send_image_to_assistant(self, new_image):
         bytes_buffer = BytesIO()
-        new_image.save(bytes_buffer, format="JPEG")
+        new_image.save(bytes_buffer, format="JPEG", quality=55, optimize=True)
         encoded_image = base64.b64encode(bytes_buffer.getvalue()).decode("utf-8")
         image_item = {
             "type": "conversation.item.create",
