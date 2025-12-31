@@ -25,6 +25,7 @@ class CameraController:
 
             self._vision_loop_thread = None
             self._stop_event = threading.Event()
+            self._send_in_flight = threading.Event()
             self.vision_loop_function = None
             self.vision_loop_frequency = 0
             self.vision_loop_start_time = [0] * 100
@@ -230,25 +231,40 @@ class CameraController:
             current_time = millis()
             if current_time >= next_vision_loop_time:
                 self.vision_loop_index += 1
-                try:
-                    print("Taking new image [o]")
-                    if self.realtime_instance:
-                        new_image = self.take_image()
-                        asyncio.run_coroutine_threadsafe(
-                            self.realtime_instance.send_image_to_assistant(new_image),
-                            self.realtime_instance.loop
-                        )
-                        print("Finished processing image")
-                    else:
-                        print("Unable to take image - realtime instance not available")
-                except Exception as e:
-                    print(f"[WARNING] Error in control loop (retrying): {e}", flush=True)
-                    traceback.print_exc()
-
+                
                 self.vision_loop_start_time.append(current_time - next_vision_loop_time)
                 if len(self.vision_loop_start_time) > 100:
                     self.vision_loop_start_time.pop(0)
+                
                 next_vision_loop_time = current_time + self.vision_loop_frequency
+                
+                if self._send_in_flight.is_set():
+                    time.sleep(0.01)
+                    continue
+
+                try:
+                    print("Taking new image [o]")
+                    if self.realtime_instance:
+                        self._send_in_flight.set()
+                        
+                        new_image = self.take_image()
+                        
+                        future = asyncio.run_coroutine_threadsafe(
+                            self.realtime_instance.send_image_to_assistant(new_image),
+                            self.realtime_instance.loop
+                        )
+
+                        future.add_done_callback(self._clear_send_flag)
+
+                        print("Finished processing image")
+                    else:
+                        self._send_in_flight.clear()
+                        print("Unable to take image - realtime instance not available")
+                
+                except Exception as e:
+                    self._send_in_flight.clear()
+                    print(f"[WARNING] Error in control loop (retrying): {e}", flush=True)
+                    traceback.print_exc()
             else:
                 time.sleep(0.01)
 
@@ -264,3 +280,12 @@ class CameraController:
     def set_realtime_instance(self, realtime_instance):
         self.realtime_instance = realtime_instance
 
+    def _clear_send_flag(self, fut):
+        try:
+            fut.result()
+        except Exception as e:
+            print(f"[WARN] Image send failed: {e}")
+        finally:
+            print("[INFO] Clearing _send_in_flight flag")
+            self._send_in_flight.clear()
+                        
