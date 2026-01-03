@@ -46,7 +46,7 @@ def log_ws_event(direction, event):
         "response.text.done": "📝",
         "response.audio.delta": "🔊",
         "response.audio.done": "🔇",
-        "response.done": "✔️",
+        "response.done": "✔️ ",
         "response.cancel": "⛔",
         "response.function_call_arguments.delta": "📥",
         "response.function_call_arguments.done": "📥",
