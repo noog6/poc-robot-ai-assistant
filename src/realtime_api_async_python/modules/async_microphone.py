@@ -21,16 +21,18 @@ class AsyncMicrophone:
             frames_per_buffer=CHUNK,
             stream_callback=self.callback,
         )
-        self.queue = queue.Queue()
+        self.queue = queue.Queue(maxsize=50)
         self.is_recording = False
         self.is_receiving = False
         logging.info("AsyncMicrophone initialized")
 
     def callback(self, in_data, frame_count, time_info, status):
         if self.is_recording and not self.is_receiving:
-            #audio_level = round( self.rms_numpy(in_data, 2), 2)
-            #print(f"[Audio Volume: {audio_level}]")
-            self.queue.put(in_data)
+            try:
+                self.queue.put_nowait(in_data)
+            except queue.Full:
+                # Drop audio rather than blocking the callback
+                pass
         return (None, pyaudio.paContinue)
 
 
@@ -71,13 +73,17 @@ class AsyncMicrophone:
         logging.info("Stopped receiving assistant response")
 
     def get_audio_data(self):
-        data = b""
-        while not self.queue.empty():
-            data += self.queue.get()
-        return data if data else None
+        chunks = []
+        while True:
+            try:
+                chunks.append(self.queue.get_nowait())
+            except queue.Empty:
+                break
+        return b"".join(chunks) if chunks else None
 
     def close(self):
         self.stream.stop_stream()
         self.stream.close()
         self.p.terminate()
         logging.info("AsyncMicrophone closed")
+
