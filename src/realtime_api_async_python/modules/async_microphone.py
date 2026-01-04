@@ -81,6 +81,16 @@ class AsyncMicrophone:
                 break
         return b"".join(chunks) if chunks else None
 
+    def drain_queue(self, max_items: int = 9999):
+        removed = 0
+        while removed < max_items:
+            try:
+                self.queue.get_nowait()
+                removed += 1
+            except queue.Empty:
+                break
+        return removed
+
     def close(self):
         self.stream.stop_stream()
         self.stream.close()

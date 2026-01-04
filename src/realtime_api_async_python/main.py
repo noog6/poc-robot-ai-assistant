@@ -80,20 +80,47 @@ class RealtimeAPI:
             sys.exit(1)
         self.exit_event = asyncio.Event()
         self.mic = AsyncMicrophone()
-        self.audio_player = AudioPlayer()
+        self.audio_player = None
         self.loop = None
 
         # Initialize state variables
         self.assistant_reply = ""
-        self.audio_chunks = []
+        self._audio_accum = bytearray()
+        self._audio_accum_bytes_target = 24000  # ~500ms at 24k mono 16-bit
         self.response_in_progress = False
         self.function_call = None
         self.function_call_args = ""
+        self.mic_send_suppress_until = 0.0
+        self.rate_limits = None
         self.response_start_time = None
         self.websocket = None
 
+    def _on_playback_complete(self):
+        logger.info("Playback complete -> restarting mic")
+    
+        # Stop "assistant receiving" mode so send loop may resume later
+        self.mic.stop_receiving()
+    
+        # Set a short cooldown to avoid speaker tail triggering server VAD
+        self.mic_send_suppress_until = time.monotonic() + 0.9  # tweak: 0.6–1.2s
+    
+        # Clear any residual audio already appended on server side (tail / leakage)
+        if self.websocket:
+            try:
+                asyncio.create_task(self.websocket.send(json.dumps({"type": "input_audio_buffer.clear"})))
+            except Exception:
+                logger.exception("Failed to send input_audio_buffer.clear")
+    
+        self.mic.start_recording()
+
     async def run(self):
         self.loop = asyncio.get_running_loop()
+        
+        def _playback_complete_from_thread():
+            self.loop.call_soon_threadsafe(self._on_playback_complete)
+        
+        self.audio_player = AudioPlayer(on_playback_complete=_playback_complete_from_thread)
+        
         while True:
             try:
                 url = "wss://api.openai.com/v1/realtime?model=gpt-realtime"
@@ -154,6 +181,8 @@ class RealtimeAPI:
                 logger.exception(f"An unexpected error occurred: {e}")
                 break  # Exit the loop on unexpected exceptions
             finally:
+                if self.audio_player:
+                    self.audio_player.close()
                 self.mic.stop_recording()
                 self.mic.close()
                 self.websocket = None
@@ -202,6 +231,8 @@ class RealtimeAPI:
     async def handle_event(self, event, websocket):
         event_type = event.get("type")
         if event_type == "response.created":
+            self.audio_player.start_response()
+            self._audio_accum.clear()
             self.mic.start_receiving()
             self.response_in_progress = True
         elif event_type == "response.output_item.added":
@@ -216,9 +247,11 @@ class RealtimeAPI:
             #print(f"Assistant: {delta}", end="", flush=True)
         elif event_type == "response.output_audio.delta":
             audio_data = base64.b64decode(event["delta"])
-            #print(f"Output Audio chunks stored: {len(audio_data)}")
-            self.audio_chunks.append(audio_data)
-            #await self.audio_player.play_audio(base64.b64decode(event["delta"]))
+            self._audio_accum.extend(audio_data)
+        
+            if len(self._audio_accum) >= self._audio_accum_bytes_target:
+                self.audio_player.play_audio(bytes(self._audio_accum))
+                self._audio_accum.clear()
         elif event_type == "response.output_audio.done":
             await self.handle_audio_response_done()
         elif event_type == "response.output_audio_transcript.delta":
@@ -234,9 +267,18 @@ class RealtimeAPI:
         elif event_type == "input_audio_buffer.speech_stopped":
             await self.handle_speech_stopped(websocket)
         elif event_type == "rate_limits.updated":
-            self.response_in_progress = False
-            self.mic.is_recording = True
-            logger.info("Resumed recording after rate_limits.updated")
+            # Convert array -> dict for easy use
+            rl = {r["name"]: r for r in event.get("rate_limits", [])}
+            self.rate_limits = rl  # store on self
+        
+            # log a compact line
+            req = rl.get("requests", {})
+            tok = rl.get("tokens", {})
+            logger.info(
+                "Rate limits: requests %s/%s reset=%ss | tokens %s/%s reset=%ss",
+                req.get("remaining"), req.get("limit"), req.get("reset_seconds"),
+                tok.get("remaining"), tok.get("limit"), tok.get("reset_seconds"),
+            )
         elif event_type == "session.updated":
             print("Session.updated received:")
             print(event)
@@ -345,25 +387,10 @@ class RealtimeAPI:
             self.response_start_time = None
 
         log_info("Assistant audio response complete.", style="bold blue")
-        if self.audio_chunks:
-            audio_data = b"".join(self.audio_chunks)
-            self.audio_chunks = []
-            logger.info(
-                f"Sending {len(audio_data)} bytes of audio data to play_audio()"
-            )
-            # Old way of calling
-            await self.audio_player.play_audio(audio_data)
-            
-            # Non-blocking
-            #asyncio.create_task(self.audio_player.play_audio(audio_data))
-
-            # Blocking
-            #await asyncio.to_thread(self.audio_player.play_audio, audio_data)
-
-            logger.info("Finished play_audio()")
-
-        logger.info("Calling stop_receiving()")
-        self.mic.stop_receiving()
+        if self._audio_accum:
+            self.audio_player.play_audio(bytes(self._audio_accum))
+            self._audio_accum.clear()
+        self.audio_player.close_response()
 
     async def handle_error(self, event, websocket):
         error_message = event.get("error", {}).get("message", "")
@@ -427,29 +454,38 @@ class RealtimeAPI:
     async def send_audio_loop(self, websocket):
         try:
             while not self.exit_event.is_set():
-                await asyncio.sleep(0.1)  # Small delay to accumulate audio data
-                if not self.mic.is_receiving:
-                    audio_data = self.mic.get_audio_data()
-                    if audio_data and len(audio_data) > 0:
-                        # print(f"Input Audio Data to send: {len(audio_data)}")
-                        base64_audio = base64_encode_audio(audio_data)
-                        if base64_audio:
-                            audio_event = {
-                                "type": "input_audio_buffer.append",
-                                "audio": base64_audio,
-                            }
-                            # log_ws_event("Outgoing", audio_event)
-                            await websocket.send(json.dumps(audio_event))
-                        else:
-                            logger.debug("No audio data to send")
-                else:
-                    await asyncio.sleep(0.1)  # Wait while receiving assistant response
+                if self.mic.is_receiving:
+                    # Nothing to send from mic while we are speaking
+                    await asyncio.sleep(0.05)  # Small delay to accumulate audio data
+                    continue
+
+                now = time.monotonic()
+                if now < self.mic_send_suppress_until:
+                    # Drop frames during cooldown (still recording locally is fine)
+                    self.mic.drain_queue()  # optionally drain
+                    await asyncio.sleep(0.05)
+                    continue
+                    
+                audio_data = self.mic.get_audio_data()
+                if audio_data:
+                    # print(f"Input Audio Data to send: {len(audio_data)}")
+                    base64_audio = base64_encode_audio(audio_data)
+                    if base64_audio:
+                        audio_event = {
+                            "type": "input_audio_buffer.append",
+                            "audio": base64_audio,
+                        }
+                        # log_ws_event("Outgoing", audio_event)
+                        await websocket.send(json.dumps(audio_event))
+                    else:
+                        logger.debug("Failed to encode audio data for sending")
+
+                await asyncio.sleep(0.03)
+
         except KeyboardInterrupt:
             logger.info("Keyboard interrupt received. Closing the connection.")
         finally:
             self.exit_event.set()
-            self.mic.stop_recording()
-            self.mic.close()
             await websocket.close()
 
     # Define the shutdown handler
