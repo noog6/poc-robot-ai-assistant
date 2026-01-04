@@ -12,21 +12,30 @@ FRAMES_PER_BUFFER = 16384
 
 
 class AudioPlayer:
-    def __init__(self, on_playback_complete=None):
+    def __init__(self, on_playback_complete=None, output_device_index=None, output_name_hint=None):
         self.on_playback_complete = on_playback_complete
-
         self.p = pyaudio.PyAudio()
-        out = self.p.get_default_output_device_info()
-        logging.info(
-            f"Output device: {out['name']} idx={out['index']} defaultRate={out.get('defaultSampleRate')}"
-        )
+
+        if output_device_index is None and output_name_hint:
+            output_device_index = self._find_device_index(
+                name_hint=output_name_hint,
+                require_output=True
+            )
+
+        if output_device_index is None:
+            out = self.p.get_default_output_device_info()
+            output_device_index = out["index"]
+            logging.info(f"[AUDIO] Output device (default): {out['name']} idx={out['index']} defaultRate={out.get('defaultSampleRate')}")
+        else:
+            info = self.p.get_device_info_by_index(output_device_index)
+            logging.info(f"[AUDIO] Output device (selected): {info['name']} idx={info['index']} defaultRate={info.get('defaultSampleRate')}")
 
         self.stream = self.p.open(
             format=FORMAT,
             channels=CHANNELS,
             rate=OUTPUT_RATE,
             output=True,
-            output_device_index=out["index"],
+            output_device_index=output_device_index,
             frames_per_buffer=FRAMES_PER_BUFFER,
             start=True,
         )
@@ -41,6 +50,23 @@ class AudioPlayer:
 
         self._t = threading.Thread(target=self._worker, daemon=True)
         self._t.start()
+
+    def _find_device_index(self, name_hint: str, require_input: bool = False, require_output: bool = False):
+        name_hint = name_hint.lower()
+        best = None
+        for i in range(self.p.get_device_count()):
+            info = self.p.get_device_info_by_index(i)
+            name = info.get("name", "").lower()
+            if name_hint in name:
+                if require_input and info.get("maxInputChannels", 0) <= 0:
+                    continue
+                if require_output and info.get("maxOutputChannels", 0) <= 0:
+                    continue
+                best = i
+                break
+        if best is None:
+            raise RuntimeError(f"No device matching '{name_hint}' found")
+        return best
 
     # --- lifecycle hooks for a single assistant response ---
     def start_response(self):

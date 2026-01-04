@@ -5,19 +5,29 @@ import logging
 from .utils import FORMAT, CHANNELS, RATE, CHUNK
 
 class AsyncMicrophone:
-    def __init__(self):
+    def __init__(self, input_device_index=None, input_name_hint=None, debug_list_devices=False):
         self.p = pyaudio.PyAudio()
-        print("Listing input devices:")
-        for i in range(self.p.get_device_count()):
-            info = self.p.get_device_info_by_index(i)
-            print(f"Device {i}: {info['name']} | Input Channels: {info['maxInputChannels']}")
-        print("Completed device list")
+
+        if debug_list_devices:
+            print("[ASYNC MIC] Listing input devices:")
+            for i in range(self.p.get_device_count()):
+                info = self.p.get_device_info_by_index(i)
+                print(f"[ASYNC MIC] Device {i}: {info['name']} | Input Channels: {info['maxInputChannels']}")
+            print("[ASYNC MIC] Completed device list")
+
+        # Resolve device index if not provided
+        if input_device_index is None and input_name_hint:
+            input_device_index = self._find_device_index(
+                name_hint=input_name_hint,
+                require_input=True
+            )
 
         self.stream = self.p.open(
             format=FORMAT,
             channels=CHANNELS,
             rate=RATE,
             input=True,
+            input_device_index=input_device_index,  # <-- explicit
             frames_per_buffer=CHUNK,
             stream_callback=self.callback,
         )
@@ -35,6 +45,22 @@ class AsyncMicrophone:
                 pass
         return (None, pyaudio.paContinue)
 
+    def _find_device_index(self, name_hint: str, require_input: bool = False, require_output: bool = False):
+            name_hint = name_hint.lower()
+            best = None
+            for i in range(self.p.get_device_count()):
+                info = self.p.get_device_info_by_index(i)
+                name = info.get("name", "").lower()
+                if name_hint in name:
+                    if require_input and info.get("maxInputChannels", 0) <= 0:
+                        continue
+                    if require_output and info.get("maxOutputChannels", 0) <= 0:
+                        continue
+                    best = i
+                    break
+            if best is None:
+                raise RuntimeError(f"No device matching '{name_hint}' found")
+            return best
 
     def rms_numpy(self, audio_bytes, sample_width=2):
         """

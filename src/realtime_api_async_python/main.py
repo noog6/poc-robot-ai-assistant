@@ -79,7 +79,7 @@ class RealtimeAPI:
             logger.error("Please set the OPENAI_API_KEY in your .env file.")
             sys.exit(1)
         self.exit_event = asyncio.Event()
-        self.mic = AsyncMicrophone()
+        self.mic = AsyncMicrophone(input_name_hint="default", debug_list_devices=False)
         self.audio_player = None
         self.loop = None
 
@@ -119,7 +119,7 @@ class RealtimeAPI:
         def _playback_complete_from_thread():
             self.loop.call_soon_threadsafe(self._on_playback_complete)
         
-        self.audio_player = AudioPlayer(on_playback_complete=_playback_complete_from_thread)
+        self.audio_player = AudioPlayer(on_playback_complete=_playback_complete_from_thread, output_name_hint="default")
         
         while True:
             try:
