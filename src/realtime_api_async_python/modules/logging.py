@@ -22,6 +22,16 @@ logger = setup_logging()
 # Function to log WebSocket events
 def log_ws_event(direction, event):
     event_type = event.get("type", "Unknown")
+    # Hard filter: these are extremely high frequency and can contribute to underruns.
+    spammy = {
+        "response.output_audio.delta",
+        "response.output_audio_transcript.delta",
+        "response.text.delta",  # optional: also chatty
+    }
+
+    if event_type in spammy:
+        return
+
     event_emojis = {
         "session.update": "🛠️",
         "session.created": "🔌",
