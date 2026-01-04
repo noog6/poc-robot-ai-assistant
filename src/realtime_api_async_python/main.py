@@ -102,7 +102,7 @@ class RealtimeAPI:
         self.mic.stop_receiving()
     
         # Set a short cooldown to avoid speaker tail triggering server VAD
-        self.mic_send_suppress_until = time.monotonic() + 0.9  # tweak: 0.6–1.2s
+        self.mic_send_suppress_until = time.monotonic() + 1.2  # tweak: 0.6–1.2s
     
         # Clear any residual audio already appended on server side (tail / leakage)
         if self.websocket:
