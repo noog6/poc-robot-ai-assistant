@@ -86,7 +86,7 @@ class RealtimeAPI:
         # Initialize state variables
         self.assistant_reply = ""
         self._audio_accum = bytearray()
-        self._audio_accum_bytes_target = 24000  # ~500ms at 24k mono 16-bit
+        self._audio_accum_bytes_target = 9600  # ~200ms at 24k mono 16-bit
         self.response_in_progress = False
         self.function_call = None
         self.function_call_args = ""
