@@ -3,6 +3,7 @@ import queue
 import logging
 import pyaudio
 import audioop
+import time
 from .utils import FORMAT, CHANNELS
 
 INPUT_RATE = 24000
@@ -91,11 +92,19 @@ class AudioPlayer:
         with self._lock:
             if self._response_closed and self._pending == 0:
                 cb = self.on_playback_complete
-                # prevent double-fire; next response will call start_response()
                 self._response_closed = False
-
+    
         if cb:
             try:
+                # Estimate remaining time still playing in the output pipeline
+                try:
+                    out_lat = float(getattr(self.stream, "get_output_latency", lambda: 0.0)())
+                except Exception:
+                    out_lat = 0.0
+    
+                buffer_secs = FRAMES_PER_BUFFER / OUTPUT_RATE  # e.g. 16384/44100 ≈ 0.37s
+                time.sleep(out_lat + buffer_secs)
+    
                 cb()
             except Exception:
                 logging.exception("on_playback_complete callback failed")
