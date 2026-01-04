@@ -32,7 +32,7 @@ class AudioPlayer:
         )
 
         # playback coordination
-        self._q = queue.Queue(maxsize=50)  # bigger; deltas can be bursty
+        self._q = queue.Queue(maxsize=75)  # bigger; deltas can be bursty
         self._stop = threading.Event()
         self._lock = threading.Lock()
         self._pending = 0                 # number of queued items not yet played
