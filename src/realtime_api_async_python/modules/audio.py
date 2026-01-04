@@ -7,7 +7,7 @@ from .utils import FORMAT, CHANNELS
 
 INPUT_RATE = 24000
 OUTPUT_RATE = 44100
-FRAMES_PER_BUFFER = 4096  # give output more slack
+FRAMES_PER_BUFFER = 16384
 
 
 class AudioPlayer:
