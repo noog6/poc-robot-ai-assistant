@@ -73,7 +73,7 @@ class CameraController:
             self._stop_event.set()
             self._vision_loop_thread.join()
             self._vision_loop_thread = None
-            print(f"Control loop stopped at index: {self.vision_loop_index}")
+            print(f"[CAMERA] Control loop stopped at index: {self.vision_loop_index}")
             self.vision_loop_index = 0
 
     def take_image(self):
@@ -104,6 +104,7 @@ class CameraController:
         Returns a PIL image suitable for your existing send_image_to_assistant().
         """
         frame = self.picam2.capture_array("main")  # shape (H, W, 3) RGB888
+        frame = frame[:, :, ::-1]  # swap R and B
         return Image.fromarray(frame, mode="RGB")
 
     def _vision_loop(self):
@@ -130,7 +131,7 @@ class CameraController:
                         time.sleep(0.01)
                         continue
 
-                    print(f"[VISION] change detected (mad={score:.2f})")
+                    print(f"[CAMERA] change detected (mad={score:.2f})")
 
                     if self.realtime_instance:
                         self._send_in_flight.set()
@@ -144,14 +145,14 @@ class CameraController:
 
                         future.add_done_callback(self._clear_send_flag)
 
-                        print("Finished processing image")
+                        print("[CAMERA] Finished processing image")
                     else:
                         self._send_in_flight.clear()
-                        print("Unable to take image - realtime instance not available")
+                        print("[CAMERA] Unable to take image - realtime instance not available")
                 
                 except Exception as e:
                     self._send_in_flight.clear()
-                    print(f"[WARNING] Error in control loop (retrying): {e}", flush=True)
+                    print(f"[CAMERA] [WARNING] Error in control loop (retrying): {e}", flush=True)
                     traceback.print_exc()
             else:
                 time.sleep(0.01)
@@ -172,9 +173,9 @@ class CameraController:
         try:
             fut.result()
         except Exception as e:
-            print(f"[WARN] Image send failed: {e}")
+            print(f"[CAMERA] [WARN] Image send failed: {e}")
         finally:
-            print("[INFO] Clearing _send_in_flight flag")
+            #print("[CAMERA] Clearing _send_in_flight flag")
             self._send_in_flight.clear()
 
     def lores_changed(self, luma: np.ndarray, threshold: float = 7.0) -> tuple[bool, float]:
