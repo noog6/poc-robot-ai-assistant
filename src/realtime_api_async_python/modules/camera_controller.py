@@ -39,8 +39,6 @@ class CameraController:
             self.vision_loop_start_time = [0] * 100
             self.vision_loop_index = 0
             self.last_image = None
-            self.previous_visual_description = "Nothing"
-            self.current_conversation_context = "There is a person in my general area"
             self.realtime_instance = None
             self.client = OpenAI()
 
@@ -53,13 +51,6 @@ class CameraController:
         if not cls._instance:
             cls._instance = CameraController()
         return cls._instance
-
-    def update_conversation_context(self, new_context):
-        self.current_conversation_context = new_context
-        #print(f"Conversation Context was updated:\n{self.current_conversation_context}\n\n")
-
-    def get_visual_context(self):
-        return self.current_conversation_context
 
     def start_vision_loop(self, vision_loop_frequency=15000):
         if self._vision_loop_thread is None or not self._vision_loop_thread.is_alive():

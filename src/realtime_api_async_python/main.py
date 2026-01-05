@@ -372,9 +372,6 @@ class RealtimeAPI:
     async def handle_transcribe_response_done(self):
         if self.assistant_reply != "":
             log_info(f"Assistant Response: {self.assistant_reply}", style="bold blue")
-            camera_instance = CameraController.get_instance()
-            camera_instance.update_conversation_context(self.assistant_reply)
-            #print(f"New context was sent to vision controller:\n{self.assistant_reply}\n")
             self.assistant_reply = ""
         
         logger.info("Finished handle_transcribe_respose_done()")
