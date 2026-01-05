@@ -45,7 +45,7 @@ def timeit_decorator(func):
         result = await func(*args, **kwargs)
         end_time = time.perf_counter()
         duration = round(end_time - start_time, 4)
-        print(f"⏰ {func.__name__}() took {duration:.4f} seconds")
+        logging.info(f"⏰ {func.__name__}() took {duration:.4f} seconds")
 
         jsonl_file = RUN_TIME_TABLE_LOG_JSON
 
@@ -69,7 +69,7 @@ def timeit_decorator(func):
         result = func(*args, **kwargs)
         end_time = time.perf_counter()
         duration = round(end_time - start_time, 4)
-        print(f"⏰ {func.__name__}() took {duration:.4f} seconds")
+        logging.info(f"⏰ {func.__name__}() took {duration:.4f} seconds")
 
         jsonl_file = RUN_TIME_TABLE_LOG_JSON
 
