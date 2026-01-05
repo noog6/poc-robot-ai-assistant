@@ -9,11 +9,11 @@ class AsyncMicrophone:
         self.p = pyaudio.PyAudio()
 
         if debug_list_devices:
-            print("[ASYNC MIC] Listing input devices:")
+            logging.info("[ASYNC MIC] Listing input devices:")
             for i in range(self.p.get_device_count()):
                 info = self.p.get_device_info_by_index(i)
-                print(f"[ASYNC MIC] Device {i}: {info['name']} | Input Channels: {info['maxInputChannels']}")
-            print("[ASYNC MIC] Completed device list")
+                logging.info(f"[ASYNC MIC] Device {i}: {info['name']} | Input Channels: {info['maxInputChannels']}")
+            logging.info("[ASYNC MIC] Completed device list")
 
         # Resolve device index if not provided
         if input_device_index is None and input_name_hint:
