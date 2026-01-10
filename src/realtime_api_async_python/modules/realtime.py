@@ -2,21 +2,17 @@ import asyncio
 import os
 import json
 import websockets
+from websockets.exceptions import ConnectionClosedError
 import base64
 import time
-import argparse
 import signal
 from datetime import datetime
-from dotenv import load_dotenv
 from io import BytesIO
-from websockets.exceptions import ConnectionClosedError
 from modules.logging import log_tool_call, log_error, log_info, log_warning
 
 # Import from modules
 from modules.async_microphone import AsyncMicrophone
 from modules.audio import AudioPlayer
-from modules.awareness_engine import AwarenessEngine
-from modules.motion_controller import MotionController
 from modules.tools import (
     function_map,
     tools,
@@ -29,7 +25,6 @@ from modules.utils import (
     SILENCE_DURATION_MS,
 )
 from modules.logging import logger, log_ws_event
-from modules.camera_controller import CameraController
 import sys
 
 def log_runtime(function_or_name: str, duration: float):
