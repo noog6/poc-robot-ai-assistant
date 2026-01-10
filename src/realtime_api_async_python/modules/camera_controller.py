@@ -97,7 +97,11 @@ class CameraController:
         """
         frame = self.picam2.capture_array("main")  # shape (H, W, 3) RGB888
         frame = frame[:, :, ::-1]  # swap R and B
-        return Image.fromarray(frame, mode="RGB")
+        
+        # Rotate by 270 degrees (90 CW) and flip horizontally.
+        rotated_image = np.rot90(frame, k=3)
+        
+        return Image.fromarray(rotated_image, mode="RGB")
 
     def _vision_loop(self):
         next_vision_loop_time = millis() + self.vision_loop_frequency
