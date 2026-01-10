@@ -63,12 +63,12 @@ def main():
     camera_instance = CameraController.get_instance()
     print("Starting vision thread...")
     camera_instance.set_realtime_instance(realtime_api_instance)
-    camera_instance.start_vision_loop(vision_loop_frequency=1000)
+    camera_instance.start_vision_loop(vision_loop_period_ms=1000)
     
     print("Starting Awareness Engine...")
     awareness_engine = AwarenessEngine.get_instance()
     awareness_engine.set_realtime_instance(realtime_api_instance)
-    #awareness_engine.start_control_loop(control_loop_frequency=15000)
+    #awareness_engine.start_control_loop(control_loop_period_ms=15000)
 
     try:
         asyncio.run(realtime_api_instance.run())

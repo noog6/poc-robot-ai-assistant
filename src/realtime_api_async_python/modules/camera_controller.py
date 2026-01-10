@@ -36,7 +36,7 @@ class CameraController:
             self._stop_event = threading.Event()
             self._send_in_flight = threading.Event()
             self.vision_loop_function = None
-            self.vision_loop_frequency = 0
+            self.vision_loop_period_ms = 0
             self.vision_loop_start_time = [0] * 100
             self.vision_loop_index = 0
             self.last_image = None
@@ -53,10 +53,10 @@ class CameraController:
             cls._instance = CameraController()
         return cls._instance
 
-    def start_vision_loop(self, vision_loop_frequency=15000):
+    def start_vision_loop(self, vision_loop_period_ms=15000):
         if self._vision_loop_thread is None or not self._vision_loop_thread.is_alive():
             self._stop_event.clear()
-            self.vision_loop_frequency = vision_loop_frequency
+            self.vision_loop_period_ms = vision_loop_period_ms
             self._vision_loop_thread = threading.Thread(target=self._vision_loop, daemon=True)
             self._vision_loop_thread.start()
 
@@ -104,7 +104,7 @@ class CameraController:
         return Image.fromarray(rotated_image, mode="RGB")
 
     def _vision_loop(self):
-        next_vision_loop_time = millis() + self.vision_loop_frequency
+        next_vision_loop_time = millis() + self.vision_loop_period_ms
         while not self._stop_event.is_set():
             current_time = millis()
             if current_time >= next_vision_loop_time:
@@ -114,7 +114,7 @@ class CameraController:
                 if len(self.vision_loop_start_time) > 100:
                     self.vision_loop_start_time.pop(0)
                 
-                next_vision_loop_time = current_time + self.vision_loop_frequency
+                next_vision_loop_time = current_time + self.vision_loop_period_ms
                 
                 if self._send_in_flight.is_set():
                     time.sleep(0.01)

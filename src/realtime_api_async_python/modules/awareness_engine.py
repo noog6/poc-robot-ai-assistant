@@ -24,7 +24,7 @@ class AwarenessEngine():
             self._stop_event                 = threading.Event()
             self.control_loop_index          = 0
             self.control_loop_function       = None
-            self.control_loop_frequency      = 100
+            self.control_loop_period_ms      = 100
             self.control_loop_start_time     = [0]*100
             self.context_queue               = []
             self.sensor_data                 = None
@@ -62,10 +62,10 @@ class AwarenessEngine():
             self.start_control_loop()
 
 
-    def start_control_loop(self, control_loop_frequency=20):
+    def start_control_loop(self, control_loop_period_ms=20):
         if self._control_loop_thread is None or not self._control_loop_thread.is_alive():
             self._stop_event.clear()
-            self.control_loop_frequency = control_loop_frequency
+            self.control_loop_period_ms = control_loop_period_ms
             self._control_loop_thread = threading.Thread(target=self._control_loop, daemon=True)
             self._control_loop_thread.start()
 
@@ -112,7 +112,7 @@ class AwarenessEngine():
                 self.control_loop_start_time.append(current_time - next_control_loop_time)
                 if len(self.control_loop_start_time) > 100:
                     self.control_loop_start_time.pop(0)
-                next_control_loop_time = current_time + self.control_loop_frequency
+                next_control_loop_time = current_time + self.control_loop_period_ms
             else:
                 new_context = self.get_next_context()
                 if new_context:
