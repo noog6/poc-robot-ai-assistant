@@ -9,6 +9,7 @@ from io import BytesIO
 from picamera2 import Picamera2
 from PIL import Image
 from openai import OpenAI
+from .logging import logger
 from .motion_controller import MotionController, millis
 from .tools import function_map, servo_tools, set_all_servos
 
@@ -64,7 +65,7 @@ class CameraController:
             self._stop_event.set()
             self._vision_loop_thread.join()
             self._vision_loop_thread = None
-            print(f"[CAMERA] Control loop stopped at index: {self.vision_loop_index}")
+            logger.info(f"[CAMERA] Control loop stopped at index: {self.vision_loop_index}")
             self.vision_loop_index = 0
 
     def take_image(self):
@@ -122,7 +123,7 @@ class CameraController:
                         time.sleep(0.01)
                         continue
 
-                    print(f"[CAMERA] change detected (mad={score:.2f})")
+                    logger.info(f"[CAMERA] change detected (mad={score:.2f})")
 
                     if self.realtime_instance:
                         self._send_in_flight.set()
@@ -136,14 +137,14 @@ class CameraController:
 
                         future.add_done_callback(self._clear_send_flag)
 
-                        print("[CAMERA] Finished processing image")
+                        logger.info("[CAMERA] Finished processing image")
                     else:
                         self._send_in_flight.clear()
-                        print("[CAMERA] Unable to take image - realtime instance not available")
+                        logger.warning("[CAMERA] Unable to take image - realtime instance not available")
                 
                 except Exception as e:
                     self._send_in_flight.clear()
-                    print(f"[CAMERA] [WARNING] Error in control loop (retrying): {e}", flush=True)
+                    logger.exception(f"[CAMERA] Error in control loop (retrying): {e}", flush=True)
                     traceback.print_exc()
             else:
                 time.sleep(0.01)
@@ -164,9 +165,9 @@ class CameraController:
         try:
             fut.result()
         except Exception as e:
-            print(f"[CAMERA] [WARN] Image send failed: {e}")
+            logger.exception(f"[CAMERA] [WARN] Image send failed: {e}")
         finally:
-            #print("[CAMERA] Clearing _send_in_flight flag")
+            #logger.info("[CAMERA] Clearing _send_in_flight flag")
             self._send_in_flight.clear()
 
     def lores_changed(self, luma: np.ndarray, threshold: float = 7.0) -> tuple[bool, float]:
