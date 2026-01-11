@@ -5,6 +5,7 @@ import numpy as np
 import threading
 import time
 import traceback
+from websockets.exceptions import ConnectionClosedOK
 from io import BytesIO
 from picamera2 import Picamera2
 from PIL import Image
@@ -168,6 +169,8 @@ class CameraController:
     def _clear_send_flag(self, fut):
         try:
             fut.result()
+        except ConnectionClosedOK:
+            pass
         except Exception as e:
             logger.exception(f"[CAMERA] [WARN] Image send failed: {e}")
         finally:
