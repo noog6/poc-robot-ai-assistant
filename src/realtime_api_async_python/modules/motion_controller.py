@@ -71,8 +71,8 @@ def limit_step(current: float,
     return nxt
 
 def scaled_pan_step(dist_deg: float) -> float:
-    PAN_STEP_MIN = 0.8   # tiny corrections
-    PAN_STEP_MAX = 2.8   # big swings
+    PAN_STEP_MIN = 0.2   # tiny corrections
+    PAN_STEP_MAX = 1.6   # big swings
     a = clamp01(abs(dist_deg) / 90.0)
     return PAN_STEP_MIN + (PAN_STEP_MAX - PAN_STEP_MIN) * a
 
@@ -202,17 +202,14 @@ class MotionController():
 
             new_frame.is_initialized = True
 
-        elapsed       = current_time - new_frame.start_time_ms
-        t             = clamp01(float(elapsed) / float(new_frame.duration_ms))
-        e             = smoothstep(t)
         dt_s          = max(self.control_loop_period_ms, 1) / 1000.0
-        desired_pan   = new_frame.start_pos["pan"]  + new_frame.delta_pos["pan"]  * e
-        desired_tilt  = new_frame.start_pos["tilt"] + new_frame.delta_pos["tilt"] * e
+        desired_pan   = new_frame.servo_destination["pan"]
+        desired_tilt  = new_frame.servo_destination["tilt"]
         pan_remaining = new_frame.servo_destination["pan"] - self.current_servo_position["pan"]
         PAN_V_MAX     = scaled_pan_step(pan_remaining) / dt_s        # deg/s, preserves your distance-based scaling
         TILT_V_MAX    = MAX_TILT_DEG_PER_TICK / dt_s                 # deg/s
-        PAN_A_MAX     = 2000.0   # deg/s^2
-        TILT_A_MAX    = 1000.0   # deg/s^2
+        PAN_A_MAX     = 600.0   # deg/s^2
+        TILT_A_MAX    = 400.0   # deg/s^2
 
         # rate-limit toward desired
         limited_pan   = limit_step(self.current_servo_position["pan"],  
@@ -234,7 +231,7 @@ class MotionController():
                                    eps=0.05)
 
         if abs(limited_pan - self.current_servo_position["pan"]) > 1.0:
-            log_info(f"[MOTION] Moving 'pan' servo to ({limited_pan:.2f}) (wanted: {desired_pan:.2f}) (PAN_V_MAX:{PAN_V_MAX:.3f}) (PAN_A_MAX:{PAN_A_MAX:.1f})")
+            log_info(f"[MOTION] [{new_frame.name}] 'pan' servo to ({limited_pan:.2f}) (wanted: {desired_pan:.2f}) (PAN_V_MAX:{PAN_V_MAX:.3f})")
         #log_info(f"[MOTION] Moving 'tilt' servo to ({limited_tilt:.2f}) (wanted: {desired_tilt:.2f})")
         
         self.current_servo_position["pan"]  = limited_pan
