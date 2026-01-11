@@ -7,10 +7,15 @@ from .keyframe       import Keyframe
 from .logging        import logger
 from .servo_registry import ServoRegistry
 
-
 def millis():
     return int(time.time() * 1000)
 
+def clamp01(x: float) -> float:
+    return 0.0 if x < 0.0 else 1.0 if x > 1.0 else x
+
+def smoothstep(t: float) -> float:
+    # ease-in/ease-out, zero slope at both ends
+    return t * t * (3.0 - 2.0 * t)
 
 class MotionController():
     _instance = None
@@ -32,13 +37,11 @@ class MotionController():
         else:
             raise Exception("You cannot create another MotionController class")
 
-
     @classmethod
     def get_instance(cls):
         if not cls._instance:
             cls._instance = MotionController()
         return cls._instance
-
 
     def is_control_loop_alive(self):
         if self._control_loop_thread is None:
@@ -46,13 +49,11 @@ class MotionController():
         
         return self._control_loop_thread.is_alive()
 
-
     def toggle_control_loop(self):
         if self.is_control_loop_alive():
             self.stop_control_loop()
         else:
             self.start_control_loop()
-
 
     def start_control_loop(self, control_loop_frequency=20):
         if self._control_loop_thread is None or not self._control_loop_thread.is_alive():
@@ -71,7 +72,6 @@ class MotionController():
             self._control_loop_thread = threading.Thread(target=self._control_loop, daemon=True)
             self._control_loop_thread.start()
 
-
     def stop_control_loop(self):
         if self._control_loop_thread is not None:
             self._stop_event.set()
@@ -86,9 +86,8 @@ class MotionController():
             logger.info(f"[MOTION] control loop stopped at index: {self.control_loop_index}")
             self.control_loop_index = 0
 
-
     def _control_loop(self):
-        next_control_loop_time = 0
+        next_control_loop_time = millis()
         
         while not self._stop_event.is_set():
             current_time = millis()
@@ -108,7 +107,6 @@ class MotionController():
             else:
                 time.sleep(0.001)
 
-
     def update_pose(self):
         if not self.current_action:
             self.current_action = self.get_next_action()
@@ -121,40 +119,25 @@ class MotionController():
                 if self.current_action.current_frame == None:
                     self.current_action = self.get_next_action()
 
-
     def move_to_keyframe(self, new_frame:Keyframe):
         
         current_time = millis()
         
         if not new_frame.is_initialized:
-            new_frame.servo_steps_left = int((new_frame.final_target_time - current_time) / self.control_loop_frequency)
-
-            if new_frame.servo_steps_left < 1:
-                new_frame.servo_steps_left = 1
+            new_frame.start_time_ms = current_time
+            new_frame.duration_ms   = max(1, new_frame.final_target_time - current_time)
+            new_frame.start_pos     = {
+                "pan":  float(self.current_servo_position["pan"]),
+                "tilt": float(self.current_servo_position["tilt"]),
+            }
+            new_frame.delta_pos     = {
+                "pan":  float(new_frame.servo_destination["pan"])  - new_frame.start_pos["pan"],
+                "tilt": float(new_frame.servo_destination["tilt"]) - new_frame.start_pos["tilt"],
+            }
 
             logger.info(f"[MOTION] New motion frame started (Name:{new_frame.name}) (Duration:{new_frame.final_target_time - current_time})")
-
-            #print( "==================================================")
-            #print(f"New frame setup              : {new_frame.name}")
-            #print(f"new_frame.final_taraget_time : {new_frame.final_target_time}")
-            #print(f"current_time                 : {current_time}")
-            #print(f"self.control_loop_frequency  : {self.control_loop_frequency}")
-            #print(f"new_frame.servo_steps_left   : {new_frame.servo_steps_left}")
-            #print( "==================================================\n")
-            #print("")
-
-            new_frame.servo_step_size["pan"]  = (new_frame.servo_destination["pan"]  - self.current_servo_position["pan"])  / new_frame.servo_steps_left
-            new_frame.servo_step_size["tilt"] = (new_frame.servo_destination["tilt"] - self.current_servo_position["tilt"]) / new_frame.servo_steps_left
-
-            logger.info(f"[MOTION] Moving 'pan' servo from ({self.current_servo_position['pan']:.3f}) to ({new_frame.servo_destination['pan']:.3f}) (Step Size: {new_frame.servo_step_size['pan']:.3f})")
-            logger.info(f"[MOTION] Moving 'tilt' servo from ({self.current_servo_position['tilt']:.3f}) to ({new_frame.servo_destination['tilt']:.3f}) (Step Size: {new_frame.servo_step_size['tilt']:.3f})")
-            #print(f"[SETUP] new_frame.servo_destination['pan']: {new_frame.servo_destination['pan']}")
-            #print(f"[SETUP] new_frame.servo_step_size['pan']:   {new_frame.servo_step_size['pan']}")
-            #print(f"[SETUP] self.current_servo_position['pan']: {self.current_servo_position['pan']}\n")
-
-            #print(f"[SETUP] new_frame.servo_destination['tilt']: {new_frame.servo_destination['tilt']}")
-            #print(f"[SETUP] new_frame.servo_step_size['tilt']:   {new_frame.servo_step_size['tilt']}")
-            #print(f"[SETUP] self.current_servo_position['tilt']: {self.current_servo_position['tilt']}\n")
+            logger.info(f"[MOTION] Moving 'pan' servo from ({self.current_servo_position['pan']:.2f}) to ({new_frame.servo_destination['pan']:.2f})")
+            logger.info(f"[MOTION] Moving 'tilt' servo from ({self.current_servo_position['tilt']:.2f}) to ({new_frame.servo_destination['tilt']:.2f})")
 
             new_frame.is_initialized = True
 
@@ -178,19 +161,28 @@ class MotionController():
             return True
 
         else:
-            self.current_servo_position["pan"]  = self.current_servo_position["pan"]  + new_frame.servo_step_size["pan"]
-            self.current_servo_position["tilt"] = self.current_servo_position["tilt"] + new_frame.servo_step_size["tilt"]
+            elapsed = current_time - new_frame.start_time_ms
+            t = clamp01(elapsed / new_frame.duration_ms)
+            e = smoothstep(t)
+            
+            self.current_servo_position["pan"]  = new_frame.start_pos["pan"]  + new_frame.delta_pos["pan"]  * e
+            self.current_servo_position["tilt"] = new_frame.start_pos["tilt"] + new_frame.delta_pos["tilt"] * e
             
             self.servo_registry.servos["pan"].write_value(self.current_servo_position["pan"])
             self.servo_registry.servos["tilt"].write_value(self.current_servo_position["tilt"])
-
-            #print(f"[MOTION] self.current_servo_position['pan']: {self.current_servo_position['pan']:.1f} ")
-            #print(f"[MOTION] self.current_servo_position['tilt']: {self.current_servo_position['tilt']:.1f} ")
-
-            new_frame.servo_steps_left -= 1
-            #print(f"[STEPS] new_frame.servo_steps_left: {new_frame.servo_steps_left}\n")
+            
+            if t >= 1.0:
+                # land exactly on destination
+                self.current_servo_position["pan"]  = new_frame.servo_destination["pan"]
+                self.current_servo_position["tilt"] = new_frame.servo_destination["tilt"]
+                self.servo_registry.servos["pan"].write_value(self.current_servo_position["pan"])
+                self.servo_registry.servos["tilt"].write_value(self.current_servo_position["tilt"])
+            
+                logger.info(f"[MOTION] 'pan' servo move completed (Cmd: {new_frame.servo_destination['pan']:.3f}) (Position: {self.current_servo_position['pan']})")
+                logger.info(f"[MOTION] 'tilt' servo move completed (Cmd: {new_frame.servo_destination['tilt']:.3f}) (Position: {self.current_servo_position['tilt']})")
+                return True
+            
             return False
-
 
     def generate_base_keyframe(self, pan_degrees:int, tilt_degrees:int):
         new_frame = Keyframe(target_time=(millis() + self.transition_time), name="base")
@@ -198,11 +190,9 @@ class MotionController():
         new_frame.servo_destination["tilt"] = tilt_degrees
         return(new_frame)
 
-
     def relax_all_servos(self):
         self.servo_registry.servos["pan"].relax()
         self.servo_registry.servos["tilt"].relax()
-
 
     def get_next_action(self):
         next_action  = None
@@ -213,8 +203,6 @@ class MotionController():
 
         return next_action
 
-
     def add_action_to_queue(self, new_action:Action):
         heapq.heappush(self.action_queue, new_action)
-
 

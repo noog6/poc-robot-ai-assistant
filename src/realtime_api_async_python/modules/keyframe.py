@@ -4,6 +4,10 @@ class Keyframe:
         self.name              = name
         self.final_target_time = target_time
         self.is_initialized    = False
+        self.start_time_ms     = None
+        self.duration_ms       = None
+        self.start_pos         = {"pan": 0.0, "tilt": 0.0}
+        self.delta_pos         = {"pan": 0.0, "tilt": 0.0}
         self.servo_steps_left  = -1
         self.servo_step_size   = {"pan" : 0,
                                   "tilt": 0 }
