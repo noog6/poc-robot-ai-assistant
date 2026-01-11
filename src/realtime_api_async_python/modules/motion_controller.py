@@ -60,12 +60,12 @@ class MotionController():
             starting_frame = self.generate_base_keyframe(pan_degrees=0, tilt_degrees=-40)
             starting_frame.name = "Starting Frame - 1"
             while not self.move_to_keyframe(starting_frame):
-                time.sleep(0.002)
+                time.sleep(0.02)
             time.sleep(1.0)
             starting_frame = self.generate_base_keyframe(pan_degrees=0, tilt_degrees=25)
             starting_frame.name = "Starting Frame - 2"
             while not self.move_to_keyframe(starting_frame):
-                time.sleep(0.002)
+                time.sleep(0.02)
             self._stop_event.clear()
             self.control_loop_frequency = control_loop_frequency
             self._control_loop_thread = threading.Thread(target=self._control_loop, daemon=True)
@@ -81,7 +81,7 @@ class MotionController():
             sit_frame.name = "Ending Frame - 1"
             sit_frame.final_target_time = millis() + 1000
             while not self.move_to_keyframe(sit_frame):
-                time.sleep(0.002)
+                time.sleep(0.02)
             self.relax_all_servos()
             logger.info(f"[MOTION] control loop stopped at index: {self.control_loop_index}")
             self.control_loop_index = 0
