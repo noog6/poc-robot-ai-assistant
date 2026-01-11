@@ -104,7 +104,7 @@ class MotionController():
                 self.control_loop_start_time.append(current_time - next_control_loop_time)
                 if len(self.control_loop_start_time) > 100:
                     self.control_loop_start_time.pop(0)
-                next_control_loop_time = current_time + self.control_loop_frequency
+                next_control_loop_time += self.control_loop_frequency
             else:
                 time.sleep(0.001)
 
