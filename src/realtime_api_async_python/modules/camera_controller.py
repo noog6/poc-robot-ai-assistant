@@ -148,7 +148,7 @@ class CameraController:
                 
                 except Exception as e:
                     self._send_in_flight.clear()
-                    logger.exception(f"[CAMERA] Error in control loop (retrying): {e}", flush=True)
+                    logger.exception(f"[CAMERA] Error in control loop (retrying): {e}")
                     traceback.print_exc()
             else:
                 time.sleep(0.01)
