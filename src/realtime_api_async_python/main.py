@@ -77,6 +77,7 @@ def main():
     except Exception as e:
         logger.exception(f"An unexpected error occurred: {e}")
     finally:
+        camera_instance.stop_vision_loop()
         motion_controller.stop_control_loop()
 
 if __name__ == "__main__":
