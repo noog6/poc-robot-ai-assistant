@@ -219,16 +219,35 @@ async def get_current_time():
 async def get_random_number():
     return {"random_number": random.randint(1, 100)}
 
-
 @timeit_decorator
 async def set_pan(degrees: float):
     motion_controller = MotionController.get_instance()
-    current_tilt_degrees = motion_controller.servo_registry.servos['tilt'].read_value()
-    #print(f"control loop index: {motion_controller.control_loop_index} ~ control loop alive: {motion_controller.is_control_loop_alive()}")
-    base_frame = motion_controller.generate_base_keyframe(tilt_degrees=current_tilt_degrees, pan_degrees=degrees)
-    base_frame.final_target_time = 1500
-    print(f"New_Pan Frame: {base_frame}")
-    new_action = Action(1, (millis() + 500), "New_Pan", base_frame)
+
+    # Prefer internal controller state (consistent + non-blocking) over reading hardware
+    current_tilt_degrees = float(motion_controller.current_servo_position["tilt"])
+
+    # Frame 1: move
+    move_frame = motion_controller.generate_base_keyframe(
+        tilt_degrees=current_tilt_degrees,
+        pan_degrees=degrees
+    )
+    move_frame.name = "pan_move"
+    move_frame.final_target_time = 3000  # ms duration (relative)
+
+    # Frame 2: dwell/hold at same pose
+    dwell_ms = 400  # pick your poison
+    hold_frame = motion_controller.generate_base_keyframe(
+        tilt_degrees=current_tilt_degrees,
+        pan_degrees=degrees
+    )
+    hold_frame.name = "pan_hold"
+    hold_frame.final_target_time = dwell_ms  # ms duration (relative)
+
+    move_frame.next = hold_frame
+
+    print(f"New_Pan Frame: {move_frame} -> {hold_frame}")
+
+    new_action = Action(1, (millis() + 500), "New_Pan", move_frame)
     motion_controller.add_action_to_queue(new_action)
     return ""
 
@@ -239,7 +258,7 @@ async def set_tilt(degrees: float):
     current_pan_degrees = motion_controller.servo_registry.servos['pan'].read_value()
     #print(f"control loop index: {motion_controller.control_loop_index} ~ control loop alive: {motion_controller.is_control_loop_alive()}")
     base_frame = motion_controller.generate_base_keyframe(tilt_degrees=degrees, pan_degrees=current_pan_degrees)
-    base_frame.final_target_time = 1000
+    base_frame.final_target_time = 600
     print(f"New_Tilt Frame: {base_frame}")
     new_action = Action(1, (millis() + 500), "New_Tilt", base_frame)
     motion_controller.add_action_to_queue(new_action)
