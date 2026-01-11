@@ -17,6 +17,16 @@ def smoothstep(t: float) -> float:
     # ease-in/ease-out, zero slope at both ends
     return t * t * (3.0 - 2.0 * t)
 
+MAX_PAN_DEG_PER_TICK  = 2.5
+MAX_TILT_DEG_PER_TICK = 1.5
+
+def limit_step(current, target, max_step):
+    d = target - current
+    if d > max_step:  return current + max_step
+    if d < -max_step: return current - max_step
+    return target
+
+
 class MotionController():
     _instance = None
 
@@ -141,41 +151,41 @@ class MotionController():
 
             new_frame.is_initialized = True
 
-        if current_time >= new_frame.final_target_time:
+        elapsed = current_time - new_frame.start_time_ms
+        t       = clamp01(float(elapsed) / float(new_frame.duration_ms))
+        e       = smoothstep(t)
+        
+        desired_pan  = new_frame.start_pos["pan"]  + new_frame.delta_pos["pan"]  * e
+        desired_tilt = new_frame.start_pos["tilt"] + new_frame.delta_pos["tilt"] * e
+        
+        # rate-limit toward desired
+        limited_pan  = limit_step(self.current_servo_position["pan"],  desired_pan,  MAX_PAN_DEG_PER_TICK)
+        limited_tilt = limit_step(self.current_servo_position["tilt"], desired_tilt, MAX_TILT_DEG_PER_TICK)
+        
+        self.current_servo_position["pan"]  = limited_pan
+        self.current_servo_position["tilt"] = limited_tilt
+        
+        self.servo_registry.servos["pan"].write_value(limited_pan)
+        self.servo_registry.servos["tilt"].write_value(limited_tilt)
+        
+        EPS     = 0.5
+        at_dest = (
+            abs(self.current_servo_position["pan"]  - new_frame.servo_destination["pan"])  <= EPS and
+            abs(self.current_servo_position["tilt"] - new_frame.servo_destination["tilt"]) <= EPS
+        )
+        
+        if at_dest:
             self.current_servo_position["pan"]  = new_frame.servo_destination["pan"]
             self.current_servo_position["tilt"] = new_frame.servo_destination["tilt"]
-           
             self.servo_registry.servos["pan"].write_value(self.current_servo_position["pan"])
             self.servo_registry.servos["tilt"].write_value(self.current_servo_position["tilt"])
-
+        
             logger.info(f"[MOTION] 'pan' servo move completed (Cmd: {new_frame.servo_destination['pan']:.3f}) (Position: {self.current_servo_position['pan']})")
             logger.info(f"[MOTION] 'tilt' servo move completed (Cmd: {new_frame.servo_destination['tilt']:.3f}) (Position: {self.current_servo_position['tilt']})")
-
             return True
+      
+        return False
 
-        else:
-            elapsed = current_time - new_frame.start_time_ms
-            t = clamp01(elapsed / new_frame.duration_ms)
-            e = smoothstep(t)
-            
-            self.current_servo_position["pan"]  = new_frame.start_pos["pan"]  + new_frame.delta_pos["pan"]  * e
-            self.current_servo_position["tilt"] = new_frame.start_pos["tilt"] + new_frame.delta_pos["tilt"] * e
-            
-            self.servo_registry.servos["pan"].write_value(self.current_servo_position["pan"])
-            self.servo_registry.servos["tilt"].write_value(self.current_servo_position["tilt"])
-            
-            if t >= 1.0:
-                # land exactly on destination
-                self.current_servo_position["pan"]  = new_frame.servo_destination["pan"]
-                self.current_servo_position["tilt"] = new_frame.servo_destination["tilt"]
-                self.servo_registry.servos["pan"].write_value(self.current_servo_position["pan"])
-                self.servo_registry.servos["tilt"].write_value(self.current_servo_position["tilt"])
-            
-                logger.info(f"[MOTION] 'pan' servo move completed (Cmd: {new_frame.servo_destination['pan']:.3f}) (Position: {self.current_servo_position['pan']})")
-                logger.info(f"[MOTION] 'tilt' servo move completed (Cmd: {new_frame.servo_destination['tilt']:.3f}) (Position: {self.current_servo_position['tilt']})")
-                return True
-            
-            return False
 
     def generate_base_keyframe(self, pan_degrees:int, tilt_degrees:int):
         new_frame = Keyframe(target_time=(millis() + self.transition_time), name="base")
