@@ -141,7 +141,7 @@ class MotionController():
 
             new_frame.is_initialized = True
 
-        if current_time >= new_frame.final_target_time or new_frame.servo_steps_left <= 1:
+        if current_time >= new_frame.final_target_time:
             self.current_servo_position["pan"]  = new_frame.servo_destination["pan"]
             self.current_servo_position["tilt"] = new_frame.servo_destination["tilt"]
            
@@ -150,13 +150,6 @@ class MotionController():
 
             logger.info(f"[MOTION] 'pan' servo move completed (Cmd: {new_frame.servo_destination['pan']:.3f}) (Position: {self.current_servo_position['pan']})")
             logger.info(f"[MOTION] 'tilt' servo move completed (Cmd: {new_frame.servo_destination['tilt']:.3f}) (Position: {self.current_servo_position['tilt']})")
-
-            #print(f"[DONE] new_frame.servo_destination['pan']: {new_frame.servo_destination['pan']}")
-            #print(f"[DONE] new_frame.servo_step_size['pan']:   {new_frame.servo_step_size['pan']}")
-            #print(f"[DONE] self.current_servo_position['pan']: {self.current_servo_position['pan']} \n")
-            #print(f"[DONE] new_frame.servo_destination['tilt']: {new_frame.servo_destination['tilt']}")
-            #print(f"[DONE] new_frame.servo_step_size['tilt']:   {new_frame.servo_step_size['tilt']}")
-            #print(f"[DONE] self.current_servo_position['tilt']: {self.current_servo_position['tilt']} \n")
 
             return True
 
