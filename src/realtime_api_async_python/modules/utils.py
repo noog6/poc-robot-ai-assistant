@@ -90,17 +90,45 @@ def timeit_decorator(func):
     return async_wrapper if asyncio.iscoroutinefunction(func) else sync_wrapper
 
 
+def _as_instruction_text(value) -> str:
+    """
+    Convert personalization fields into clean instruction text.
+    - list[str] -> joined lines
+    - str -> returned as-is
+    - None/missing -> ""
+    """
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        # Use bullets or newlines—both work well. Bullets read nicer.
+        items = [str(x).strip() for x in value if str(x).strip()]
+        return "\n- " + "\n- ".join(items) + "\n" if items else ""
+    if isinstance(value, str):
+        s = value.strip()
+        return (s + "\n") if s else ""
+    # fallback for unexpected types (dict, int, etc.)
+    return str(value).strip() + "\n"
+
+
 # Load personalization settings
 personalization_file = os.getenv("PERSONALIZATION_FILE", "./personalization.json")
 with open(personalization_file, "r") as f:
     personalization = json.load(f)
 
+ai_name = personalization.get("ai_assistant_name", "Assistant")
+human_name = personalization.get("human_name", "User")
+
+personality_core = _as_instruction_text(personalization.get("personality_core"))
+physical_body = _as_instruction_text(personalization.get("physical_body"))
+
 SESSION_INSTRUCTIONS = (
-    f"You are called {personalization.get('ai_assistant_name', 'Assistant')}. "
-    f"Your human partner is called {personalization.get('human_name', 'User')}. "
-    f"{personalization.get('personality_core', '')}"
-    f"{personalization.get('physical_body', '')}"
-)
+    f"You are called {ai_name}.\n"
+    f"Your human partner is called {human_name}.\n"
+    f"Follow the user's intent. Keep responses brief unless asked to elaborate."
+    f"\n## Personality\n{personality_core}"
+    f"\n## Physical Form\n{physical_body}"
+).strip()
+
 
 PREFIX_PADDING_MS = 500
 SILENCE_THRESHOLD = 0.2
