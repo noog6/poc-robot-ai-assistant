@@ -252,7 +252,7 @@ class RealtimeAPI:
                 tok.get("remaining"), tok.get("limit"), tok.get("reset_seconds"),
             )
         elif event_type == "session.updated":
-            log_session_updated(event, full_payload=True)
+            log_session_updated(event, full_payload=False)
 
     async def handle_output_item_added(self, event):
         item = event.get("item", {})
