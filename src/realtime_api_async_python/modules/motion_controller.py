@@ -236,10 +236,9 @@ class MotionController():
     def _init_frame(self, frame: Keyframe, now_ms: int) -> None:
         frame.start_time_ms = now_ms
     
-        if frame.deadline_ms is None:
-            frame.deadline_ms = now_ms + max(0, int(frame.final_target_time))
-    
-        frame.duration_ms = max(1, int(frame.deadline_ms - now_ms))
+        dur = max(0, int(frame.final_target_time))  # treat as duration always
+        frame.deadline_ms = now_ms + dur
+        frame.duration_ms = max(1, dur)
     
         frame.start_pos = {
             "pan":  float(self.current_servo_position["pan"]),
@@ -250,7 +249,7 @@ class MotionController():
             "tilt": float(frame.servo_destination["tilt"]) - frame.start_pos["tilt"],
         }
     
-        log_info(f"[MOTION] New motion frame started (Name:{frame.name}) (Duration:{frame.duration_ms})")
+        log_info(f"[MOTION] New motion frame started (Name:{frame.name}) (Duration:{frame.duration_ms}) (deadline_ms:{frame.deadline_ms})")
         log_info(f"[MOTION] Moving 'pan' servo from ({self.current_servo_position['pan']:.2f}) to ({frame.servo_destination['pan']:.2f})")
         log_info(f"[MOTION] Moving 'tilt' servo from ({self.current_servo_position['tilt']:.2f}) to ({frame.servo_destination['tilt']:.2f})")
     

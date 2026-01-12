@@ -17,11 +17,9 @@ class Action:
         return self.timestamp < other.timestamp
 
     def set_frame_times(self, target_start_time):
-        next_frame_start = target_start_time
-        frame_index      = self.frames
+        frame_index = self.frames
         while frame_index:
-            dur                      = max(0, int(frame_index.final_target_time))  # prevent negative holds
-            frame_index.deadline_ms  = next_frame_start + dur
-            next_frame_start        += dur
-            frame_index              = frame_index.next
+            frame_index.deadline_ms    = None
+            frame_index.is_initialized = False
+            frame_index                = frame_index.next
 
