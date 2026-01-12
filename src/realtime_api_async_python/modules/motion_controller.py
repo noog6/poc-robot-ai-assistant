@@ -203,7 +203,7 @@ class MotionController():
                                   self.axis_v, "tilt", dt_s, TILT_V_MAX, TILT_A_MAX, eps=0.05)
     
         if abs(limited_pan - self.current_servo_position["pan"]) > 1.0:
-            log_info(f"[MOTION] [{new_frame.name}] 'pan' servo to ({limited_pan:.2f}) (wanted: {desired_pan:.2f}) (PAN_V_MAX:{PAN_V_MAX:.3f})")
+            log_info(f"[MOTION] [{new_frame.name}] 'pan' servo to ({limited_pan:.2f}) (wanted: {desired_pan:.2f}) (PAN_V_MAX:{PAN_V_MAX:.3f}) (Elapsed ms:{now_ms - new_frame.start_time_ms})")
     
         self.current_servo_position["pan"]  = limited_pan
         self.current_servo_position["tilt"] = limited_tilt
@@ -227,8 +227,8 @@ class MotionController():
             self.servo_registry.servos["pan"].write_value(desired_pan)
             self.servo_registry.servos["tilt"].write_value(desired_tilt)
     
-            log_info(f"[MOTION] 'pan' servo move completed (Cmd: {desired_pan:.3f}) (Position: {desired_pan})")
-            log_info(f"[MOTION] 'tilt' servo move completed (Cmd: {desired_tilt:.3f}) (Position: {desired_tilt})")
+            log_info(f"[MOTION] 'pan' servo move completed (Cmd: {desired_pan:.3f}) (Position: {desired_pan}) (Elapsed ms: {now_ms - new_frame.start_time_ms})")
+            log_info(f"[MOTION] 'tilt' servo move completed (Cmd: {desired_tilt:.3f}) (Position: {desired_tilt}) (Duration ms: {new_frame.final_target_time})")
             return True
     
         return False
