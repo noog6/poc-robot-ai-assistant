@@ -139,7 +139,8 @@ class MotionController():
             self._control_loop_thread = None
             sit_frame = self.generate_base_keyframe(pan_degrees=0, tilt_degrees=-40)
             sit_frame.name = "Ending Frame - 1"
-            sit_frame.final_target_time = millis() + 1000
+            sit_frame.final_target_time = 1000
+            sit_frame.deadline_ms = None
             while not self.move_to_keyframe(sit_frame):
                 time.sleep(0.02)
             self.relax_all_servos()
@@ -180,90 +181,113 @@ class MotionController():
                 if self.current_action.current_frame == None:
                     self.current_action = self.get_next_action()
 
-    def move_to_keyframe(self, new_frame:Keyframe):
-        
-        current_time = millis()
-        
+    def move_to_keyframe(self, new_frame: Keyframe) -> bool:
+        now_ms = millis()
+    
         if not new_frame.is_initialized:
-            new_frame.start_time_ms = current_time
-            new_frame.duration_ms   = max(1, new_frame.final_target_time - current_time)
-            new_frame.start_pos     = {
-                "pan":  float(self.current_servo_position["pan"]),
-                "tilt": float(self.current_servo_position["tilt"]),
-            }
-            new_frame.delta_pos     = {
-                "pan":  float(new_frame.servo_destination["pan"])  - new_frame.start_pos["pan"],
-                "tilt": float(new_frame.servo_destination["tilt"]) - new_frame.start_pos["tilt"],
-            }
-
-            log_info(f"[MOTION] New motion frame started (Name:{new_frame.name}) (Duration:{new_frame.final_target_time - current_time})")
-            log_info(f"[MOTION] Moving 'pan' servo from ({self.current_servo_position['pan']:.2f}) to ({new_frame.servo_destination['pan']:.2f})")
-            log_info(f"[MOTION] Moving 'tilt' servo from ({self.current_servo_position['tilt']:.2f}) to ({new_frame.servo_destination['tilt']:.2f})")
-
-            new_frame.is_initialized = True
-
+            self._init_frame(new_frame, now_ms)
+    
         dt_s          = max(self.control_loop_period_ms, 1) / 1000.0
         desired_pan   = new_frame.servo_destination["pan"]
         desired_tilt  = new_frame.servo_destination["tilt"]
-        pan_remaining = new_frame.servo_destination["pan"] - self.current_servo_position["pan"]
-        PAN_V_MAX     = scaled_pan_step(pan_remaining) / dt_s        # deg/s, preserves your distance-based scaling
-        TILT_V_MAX    = MAX_TILT_DEG_PER_TICK / dt_s                 # deg/s
-        PAN_A_MAX     = 600.0   # deg/s^2
-        TILT_A_MAX    = 400.0   # deg/s^2
-
-        # rate-limit toward desired
-        limited_pan   = limit_step(self.current_servo_position["pan"],  
-                                   desired_pan,
-                                   self.axis_v, 
-                                   "pan",  
-                                   dt_s, 
-                                   PAN_V_MAX,  
-                                   PAN_A_MAX,  
-                                   eps=0.05)
-
-        limited_tilt  = limit_step(self.current_servo_position["tilt"], 
-                                   desired_tilt,
-                                   self.axis_v, 
-                                   "tilt", 
-                                   dt_s, 
-                                   TILT_V_MAX, 
-                                   TILT_A_MAX, 
-                                   eps=0.05)
-
+        pan_remaining = desired_pan - self.current_servo_position["pan"]
+        PAN_V_MAX     = scaled_pan_step(pan_remaining) / dt_s
+        TILT_V_MAX    = MAX_TILT_DEG_PER_TICK / dt_s
+        PAN_A_MAX     = 600.0
+        TILT_A_MAX    = 400.0
+    
+        limited_pan = limit_step(self.current_servo_position["pan"], desired_pan,
+                                 self.axis_v, "pan", dt_s, PAN_V_MAX, PAN_A_MAX, eps=0.05)
+    
+        limited_tilt = limit_step(self.current_servo_position["tilt"], desired_tilt,
+                                  self.axis_v, "tilt", dt_s, TILT_V_MAX, TILT_A_MAX, eps=0.05)
+    
         if abs(limited_pan - self.current_servo_position["pan"]) > 1.0:
             log_info(f"[MOTION] [{new_frame.name}] 'pan' servo to ({limited_pan:.2f}) (wanted: {desired_pan:.2f}) (PAN_V_MAX:{PAN_V_MAX:.3f})")
-        #log_info(f"[MOTION] Moving 'tilt' servo to ({limited_tilt:.2f}) (wanted: {desired_tilt:.2f})")
-        
+    
         self.current_servo_position["pan"]  = limited_pan
         self.current_servo_position["tilt"] = limited_tilt
-        
         self.servo_registry.servos["pan"].write_value(limited_pan)
         self.servo_registry.servos["tilt"].write_value(limited_tilt)
-        
-        EPS     = 0.5
+    
+        # --- compute at_dest ---
+        EPS = 0.5
         at_dest = (
-            abs(self.current_servo_position["pan"]  - new_frame.servo_destination["pan"])  <= EPS and
-            abs(self.current_servo_position["tilt"] - new_frame.servo_destination["tilt"]) <= EPS
+            abs(self.current_servo_position["pan"]  - desired_pan)  <= EPS and
+            abs(self.current_servo_position["tilt"] - desired_tilt) <= EPS
         )
-        
-        if at_dest:
-            self.current_servo_position["pan"]  = new_frame.servo_destination["pan"]
-            self.current_servo_position["tilt"] = new_frame.servo_destination["tilt"]
-            self.servo_registry.servos["pan"].write_value(self.current_servo_position["pan"])
-            self.servo_registry.servos["tilt"].write_value(self.current_servo_position["tilt"])
-        
-            log_info(f"[MOTION] 'pan' servo move completed (Cmd: {new_frame.servo_destination['pan']:.3f}) (Position: {self.current_servo_position['pan']})")
-            log_info(f"[MOTION] 'tilt' servo move completed (Cmd: {new_frame.servo_destination['tilt']:.3f}) (Position: {self.current_servo_position['tilt']})")
+    
+        # --- completion policy ---
+        done = self._frame_done(new_frame, at_dest, now_ms)
+    
+        if done:
+            # snap to exact destination for cleanliness
+            self.current_servo_position["pan"]  = desired_pan
+            self.current_servo_position["tilt"] = desired_tilt
+            self.servo_registry.servos["pan"].write_value(desired_pan)
+            self.servo_registry.servos["tilt"].write_value(desired_tilt)
+    
+            log_info(f"[MOTION] 'pan' servo move completed (Cmd: {desired_pan:.3f}) (Position: {desired_pan})")
+            log_info(f"[MOTION] 'tilt' servo move completed (Cmd: {desired_tilt:.3f}) (Position: {desired_tilt})")
             return True
-      
+    
+        return False
+
+    def _init_frame(self, frame: Keyframe, now_ms: int) -> None:
+        frame.start_time_ms = now_ms
+    
+        if frame.deadline_ms is None:
+            frame.deadline_ms = now_ms + max(0, int(frame.final_target_time))
+    
+        frame.duration_ms = max(1, int(frame.deadline_ms - now_ms))
+    
+        frame.start_pos = {
+            "pan":  float(self.current_servo_position["pan"]),
+            "tilt": float(self.current_servo_position["tilt"]),
+        }
+        frame.delta_pos = {
+            "pan":  float(frame.servo_destination["pan"])  - frame.start_pos["pan"],
+            "tilt": float(frame.servo_destination["tilt"]) - frame.start_pos["tilt"],
+        }
+    
+        log_info(f"[MOTION] New motion frame started (Name:{frame.name}) (Duration:{frame.duration_ms})")
+        log_info(f"[MOTION] Moving 'pan' servo from ({self.current_servo_position['pan']:.2f}) to ({frame.servo_destination['pan']:.2f})")
+        log_info(f"[MOTION] Moving 'tilt' servo from ({self.current_servo_position['tilt']:.2f}) to ({frame.servo_destination['tilt']:.2f})")
+    
+        frame.is_initialized = True
+
+    def _frame_done(self, frame: Keyframe, at_dest: bool, now_ms: int) -> bool:
+        """
+        Completion policy:
+          - If no deadline: advance as soon as at_dest.
+          - If deadline: treat as a HOLD gate:
+              - advance only when at_dest AND time has passed.
+          - Optional robustness: if deadline passed, allow advance even if not at_dest.
+            (toggle with FAIL_OPEN_ON_DEADLINE)
+        """
+        FAIL_OPEN_ON_DEADLINE = False  # set True if you prefer "don't get stuck"
+    
+        if not frame.has_deadline():
+            return at_dest
+    
+        time_up = now_ms >= frame.deadline_ms
+    
+        if at_dest:
+            return time_up  # classic "hold until time passes"
+    
+        # Not at destination:
+        if FAIL_OPEN_ON_DEADLINE and time_up:
+            log_warning(f"[MOTION] Frame '{frame.name}' missed destination before deadline; advancing anyway.")
+            return True
+    
         return False
 
 
     def generate_base_keyframe(self, pan_degrees:int, tilt_degrees:int):
-        new_frame = Keyframe(target_time=(millis() + self.transition_time), name="base")
+        new_frame = Keyframe(target_time=self.transition_time, name="base")
         new_frame.servo_destination["pan"]  = pan_degrees
         new_frame.servo_destination["tilt"] = tilt_degrees
-        return(new_frame)
+        return new_frame
 
     def relax_all_servos(self):
         self.servo_registry.servos["pan"].relax()

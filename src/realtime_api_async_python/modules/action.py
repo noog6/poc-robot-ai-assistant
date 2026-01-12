@@ -20,9 +20,8 @@ class Action:
         next_frame_start = target_start_time
         frame_index      = self.frames
         while frame_index:
-            # For this calc, final_target_time should only contain an offset of milliseconds expected between frames
-            current_frame_time = frame_index.final_target_time
-            frame_index.final_target_time = next_frame_start + current_frame_time
-            next_frame_start += current_frame_time
-            frame_index = frame_index.next
+            dur                      = max(0, int(frame_index.final_target_time))  # prevent negative holds
+            frame_index.deadline_ms  = next_frame_start + dur
+            next_frame_start        += dur
+            frame_index              = frame_index.next
 
