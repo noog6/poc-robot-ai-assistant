@@ -83,6 +83,8 @@ class MotionController():
         if self._instance is None:
             self._control_loop_thread    = None
             self._stop_event             = threading.Event()
+            self._moving_event           = threading.Event()
+            self._queue_lock             = threading.Lock()
             self.control_loop_index      = 0
             self.control_loop_function   = None
             self.control_loop_period_ms  = 100
@@ -93,7 +95,6 @@ class MotionController():
             self.axis_v                  = {"pan": 0.0, "tilt": 0.0}
             self.action_queue            = []
             self.current_action          = None
-            self._queue_lock             = threading.Lock()
         else:
             raise Exception("You cannot create another MotionController class")
 
@@ -182,6 +183,7 @@ class MotionController():
                     self.current_action = self.get_next_action()
 
     def move_to_keyframe(self, new_frame: Keyframe) -> bool:
+        self._moving_event.set()
         now_ms = millis()
     
         if not new_frame.is_initialized:
@@ -229,6 +231,7 @@ class MotionController():
     
             log_info(f"[MOTION] 'pan' servo move completed (Cmd: {desired_pan:.3f}) (Position: {desired_pan}) (Elapsed ms: {now_ms - new_frame.start_time_ms})")
             log_info(f"[MOTION] 'tilt' servo move completed (Cmd: {desired_tilt:.3f}) (Position: {desired_tilt}) (Duration ms: {new_frame.final_target_time})")
+            self._moving_event.clear()
             return True
     
         return False
@@ -305,4 +308,8 @@ class MotionController():
     def add_action_to_queue(self, new_action: Action):
         with self._queue_lock:
             heapq.heappush(self.action_queue, new_action)
+
+    def is_moving(self) -> bool:
+        return self._moving_event.is_set()
+
 

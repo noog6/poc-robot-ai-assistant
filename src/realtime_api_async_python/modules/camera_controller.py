@@ -42,6 +42,7 @@ class CameraController:
             self.vision_loop_index = 0
             self.last_image = None
             self.realtime_instance = None
+            self.motion = MotionController.get_instance()
             self.client = OpenAI()
 
             CameraController._instance = self
@@ -109,48 +110,44 @@ class CameraController:
         while not self._stop_event.is_set():
             current_time = millis()
             if current_time >= next_vision_loop_time:
-                self.vision_loop_index += 1
-                
-                self.vision_loop_start_time.append(current_time - next_vision_loop_time)
-                if len(self.vision_loop_start_time) > 100:
-                    self.vision_loop_start_time.pop(0)
-                
+                # schedule next tick first
                 next_vision_loop_time = current_time + self.vision_loop_period_ms
-                
+    
+                # 1) don’t compete with an in-flight send
                 if self._send_in_flight.is_set():
                     time.sleep(0.01)
                     continue
-
+    
+                # 2) NEW: don’t look while we’re moving
+                if self.motion and self.motion.is_moving():
+                    logger.info("[CAMERA] skipped (motion active)")
+                    time.sleep(0.01)
+                    continue
+    
                 try:
                     luma = self.take_lores_luma()
                     changed, score = self.lores_changed(luma, threshold=7.0)
                     if not changed:
                         time.sleep(0.01)
                         continue
-
+    
                     logger.info(f"[CAMERA] change detected (mad={score:.2f})")
-
+    
                     if self.realtime_instance:
                         self._send_in_flight.set()
-                        
                         new_image = self.take_main_pil()
-                        
                         future = asyncio.run_coroutine_threadsafe(
                             self.realtime_instance.send_image_to_assistant(new_image),
                             self.realtime_instance.loop
                         )
-
                         future.add_done_callback(self._clear_send_flag)
-
-                        logger.info("[CAMERA] Finished processing image")
                     else:
                         self._send_in_flight.clear()
                         logger.warning("[CAMERA] Unable to take image - realtime instance not available")
-                
+    
                 except Exception as e:
                     self._send_in_flight.clear()
                     logger.exception(f"[CAMERA] Error in control loop (retrying): {e}")
-                    traceback.print_exc()
             else:
                 time.sleep(0.01)
 
