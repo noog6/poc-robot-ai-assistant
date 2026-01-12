@@ -8,9 +8,6 @@ class Keyframe:
         self.duration_ms       = None
         self.start_pos         = {"pan": 0.0, "tilt": 0.0}
         self.delta_pos         = {"pan": 0.0, "tilt": 0.0}
-        self.servo_steps_left  = -1
-        self.servo_step_size   = {"pan" : 0,
-                                  "tilt": 0 }
         self.servo_destination = {"pan" : 0,
                                   "tilt": 0 }
         self.audio             = None
