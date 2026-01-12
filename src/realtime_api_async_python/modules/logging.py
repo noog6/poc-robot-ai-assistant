@@ -95,7 +95,7 @@ def log_warning(message):
 # ---------------------------
 MAX_STR           = 38     # cap long strings (instructions, etc.)
 MAX_LIST          = 60     # cap list lengths
-TOOL_NAME_CAP     = 25     # show first N tool names in summary
+TOOL_NAME_CAP     = 35     # show first N tool names in summary
 REDACT            = True   # if True, redact IDs
 REDACT_KEYS       = {"event_id", "id", "session_id"}  # applied during normalization
 NO_TRUNCATE_KEYS  = {"instructions"}
