@@ -8,7 +8,7 @@ import time
 import signal
 from datetime import datetime
 from io import BytesIO
-from modules.logging import log_tool_call, log_error, log_info, log_warning
+from modules.logging import log_tool_call, log_error, log_info, log_warning, log_session_updated
 
 # Import from modules
 from modules.async_microphone import AsyncMicrophone
@@ -252,8 +252,7 @@ class RealtimeAPI:
                 tok.get("remaining"), tok.get("limit"), tok.get("reset_seconds"),
             )
         elif event_type == "session.updated":
-            print("Session.updated received:")
-            print(event)
+            log_session_updated(event, full_payload=True)
 
     async def handle_output_item_added(self, event):
         item = event.get("item", {})
